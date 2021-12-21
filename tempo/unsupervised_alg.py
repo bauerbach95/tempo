@@ -243,9 +243,6 @@ def run(adata,
 
 
 
-
-
-
 	# --- START ALGORTHM ---
 
 	algorithm_step = 0
@@ -326,13 +323,6 @@ def run(adata,
 		prior_theta_euclid_dist = utils.init_distributions_from_param_dicts(cell_prior_dict = cell_prior_dict)['prior_theta_euclid']
 
 
-		print("BEFORE")
-		print("printing gene param df Q prob A")
-		print(cycler_gene_prior_dict['prior_Q_prob_alpha'])
-		print("printing gene param df Q prob B")
-		print(cycler_gene_prior_dict['prior_Q_prob_beta'])
-
-
 
 		# ** run **
 		opt_cycler_theta_posterior_likelihood, opt_cycler_gene_param_dict_unprepped = clock_posterior_opt.run(gene_X = cycler_gene_X,
@@ -365,15 +355,6 @@ def run(adata,
 
 
 
-		print("AFTER")
-		print("printing gene param df Q prob A")
-		print(cycler_gene_prior_dict['prior_Q_prob_alpha'])
-		print("printing gene param df Q prob B")
-		print(cycler_gene_prior_dict['prior_Q_prob_beta'])
-
-
-
-
 		# ** write out the params / priors as a DataFrame **
 
 		# get df's
@@ -391,12 +372,6 @@ def run(adata,
 		cell_prior_df.to_csv(cell_prior_fileout,sep='\t')
 		gene_param_df_fileout = '%s/cell_phase_estimation/gene_prior_and_posterior.tsv' % alg_step_subfolder #  (folder_out)
 		gene_param_df.to_csv(gene_param_df_fileout,sep='\t')
-
-		print("GENE PARAM DF")
-		print("printing gene param df Q prob A")
-		print(gene_param_df['prior_Q_prob_alpha'])
-		print("printing gene param df Q prob B")
-		print(gene_param_df['prior_Q_prob_beta'])
 
 
 
