@@ -13,8 +13,8 @@ After installing mini-conda, run the following commands to install Tempo:
 6) python setup.py install
 
 
-
-
+To test is Tempo works properly, run the run_test.py file using:
+python run_test.py
 
 
 
