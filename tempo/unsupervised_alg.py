@@ -76,7 +76,6 @@ def run(adata,
 	vi_batch_size = 3000,
 	vi_num_workers = 0,
 	vi_pin_memory = False,
-	batch_indicator_mat = None,
 	test_mode = False,
 	null_percentile_threshold = 90.0,
 	num_null_shuffles = 5,
@@ -353,7 +352,7 @@ def run(adata,
 			vi_batch_size = vi_batch_size,
 			vi_num_workers = vi_num_workers,
 			vi_pin_memory = vi_pin_memory,
-			batch_indicator_mat = batch_indicator_mat,
+			batch_indicator_mat = None,
 			detect_anomaly = detect_anomaly)
 
 
@@ -529,7 +528,7 @@ def run(adata,
 			pin_memory = vi_pin_memory,
 			use_nb = use_nb,
 			log_mean_log_disp_coef = log_mean_log_disp_coef,
-			batch_indicator_mat = batch_indicator_mat,
+			batch_indicator_mat = None,
 			detect_anomaly = detect_anomaly)
 
 
@@ -584,7 +583,7 @@ def run(adata,
 			pin_memory = vi_pin_memory,
 			use_nb = use_nb,
 			log_mean_log_disp_coef = log_mean_log_disp_coef,
-			batch_indicator_mat = batch_indicator_mat,
+			batch_indicator_mat = None,
 			detect_anomaly = detect_anomaly)
 
 
