@@ -19,6 +19,10 @@ from . import unsupervised_alg
 
 
 
+# python run_tempo.py -f /Users/benauerbach/Dropbox/tempo_paper/figures/ld_figure/fitzgerald_cluster-1/adata.h5ad -o /Users/benauerbach/Dropbox/tempo_paper/figures/ld_figure/fitzgerald_cluster-1/tempo -c /users/benauerbach/desktop/sc_phase_inference/paper_figures/method_config_dicts/dataset_configs/tempo_fitzgerald_cluster-1_config.txt
+
+
+
 
 def run(adata_path, folder_out, config_dict_path):
 

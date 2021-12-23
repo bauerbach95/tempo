@@ -86,6 +86,7 @@ def run(adata,
 	A_loc_pearson_residual_threshold = 0.5,
 	confident_cell_interval_size_threshold = 12.0,
 	max_num_alg_steps=3,
+	evidence_improvement_threshold=0.001,
 	**kwargs):
 
 
@@ -116,7 +117,7 @@ def run(adata,
 	config_dict = locals()
 	del config_dict['adata']
 
-	# ** write
+	# ** write **
 	config_path = "%s/config.txt" % folder_out
 	with open(config_path, "wb") as file_obj:
 		file_obj.write(str(config_dict).encode())
@@ -249,7 +250,7 @@ def run(adata,
 
 	algorithm_step = 0
 	prev_evidence = None
-	alg_result_head_folder = "%s/alg_steps" % folder_out
+	alg_result_head_folder = "%s/tempo_results" % folder_out
 	if not os.path.exists(alg_result_head_folder):
 		os.makedirs(alg_result_head_folder)
 	while True:
@@ -656,9 +657,6 @@ def run(adata,
 
 		# --- CHECK FOR CONVERGENCE ----
 
-		# print("Temporarily going until 3rd iteration!!!!")
-		# if algorithm_step >= 3:
-		# 	break
 
 		# break if evidence for core clock expression has converged
 		if prev_evidence is None:
@@ -666,7 +664,7 @@ def run(adata,
 		else:
 			evidence_improvement = ((cycler_evidence - prev_evidence) / np.abs(prev_evidence))
 			print("Evidence improvement at algorithm step %s: %s" % (algorithm_step, evidence_improvement))
-			if evidence_improvement <= 0.01:
+			if evidence_improvement <= evidence_improvement_threshold:
 				break
 
 
