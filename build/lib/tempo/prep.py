@@ -433,20 +433,24 @@ def get_cycler_prob_variational_and_prior_params(adata, init_clock_Q_prob_alpha,
 
 	else:
 
-		# get the clock gene indices
-		clock_indices = np.where(adata.var['is_clock'])[0]
-
 		# get the Q_prob_alpha and Q_prob_beta tensors
 		Q_prob_alpha = torch.Tensor(np.array([init_non_clock_Q_prob_alpha] * adata.shape[1]))
 		Q_prob_beta = torch.Tensor(np.array([init_non_clock_Q_prob_beta] * adata.shape[1]))
-		Q_prob_alpha[clock_indices] = init_clock_Q_prob_alpha
-		Q_prob_beta[clock_indices] = init_clock_Q_prob_beta
+
 
 		# get the prior_Q_prob_alpha and prior_Q_prob_beta tensors
 		prior_Q_prob_alpha = torch.Tensor(np.array([prior_non_clock_Q_prob_alpha] * adata.shape[1]))
 		prior_Q_prob_beta = torch.Tensor(np.array([prior_non_clock_Q_prob_beta] * adata.shape[1]))
-		prior_Q_prob_alpha[clock_indices] = prior_clock_Q_prob_alpha
-		prior_Q_prob_beta[clock_indices] = prior_clock_Q_prob_beta
+
+
+		# add update Q prob alpha and beta (and priors) for clock genes
+		if "is_clock" in adata.var:
+			clock_indices = np.where(adata.var['is_clock'])[0]
+			Q_prob_alpha[clock_indices] = init_clock_Q_prob_alpha
+			Q_prob_beta[clock_indices] = init_clock_Q_prob_beta
+			prior_Q_prob_alpha[clock_indices] = prior_clock_Q_prob_alpha
+			prior_Q_prob_beta[clock_indices] = prior_clock_Q_prob_beta
+
 
 
 	# ** get the variational parameters **

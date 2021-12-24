@@ -172,10 +172,11 @@ def run(adata,
 
 	# --- MAKE AN INITIAL GUESS ABOUT PARAMS FOR MEAN / DISPERSION RELATIONSHIP ---
 
-	print("--- ESTIMATING GLOBAL MEAN-DISPERSION RELATIONSHIP FOR NEGATIVE BINOMIAL ---")
+	
 
 	# ** get the log mean - log disp polynomial coefficients **
 	if use_nb:
+		print("--- ESTIMATING GLOBAL MEAN-DISPERSION RELATIONSHIP FOR NEGATIVE BINOMIAL ---")
 		log_mean_log_disp_coef = estimate_mean_disp_relationship.estimate_mean_disp_relationship(adata, mean_disp_init_coef, mean_disp_log10_prop_bin_marks, mean_disp_max_num_genes_per_bin,min_log_disp=-10,max_log_disp=10)
 	else:
 		log_mean_log_disp_coef = np.array([1e-1000]) # i.e. use Poisson (mean equals the variance; if log_disp = 1e-1000, np.exp(log_disp) ~ 0)

@@ -76,7 +76,6 @@ def run(adata,
 	vi_batch_size = 3000,
 	vi_num_workers = 0,
 	vi_pin_memory = False,
-	batch_indicator_mat = None,
 	test_mode = False,
 	null_percentile_threshold = 90.0,
 	num_null_shuffles = 5,
@@ -117,7 +116,7 @@ def run(adata,
 	config_dict = locals()
 	del config_dict['adata']
 
-	# ** write
+	# ** write **
 	config_path = "%s/config.txt" % folder_out
 	with open(config_path, "wb") as file_obj:
 		file_obj.write(str(config_dict).encode())
@@ -173,10 +172,11 @@ def run(adata,
 
 	# --- MAKE AN INITIAL GUESS ABOUT PARAMS FOR MEAN / DISPERSION RELATIONSHIP ---
 
-	print("--- ESTIMATING GLOBAL MEAN-DISPERSION RELATIONSHIP FOR NEGATIVE BINOMIAL ---")
+	
 
 	# ** get the log mean - log disp polynomial coefficients **
 	if use_nb:
+		print("--- ESTIMATING GLOBAL MEAN-DISPERSION RELATIONSHIP FOR NEGATIVE BINOMIAL ---")
 		log_mean_log_disp_coef = estimate_mean_disp_relationship.estimate_mean_disp_relationship(adata, mean_disp_init_coef, mean_disp_log10_prop_bin_marks, mean_disp_max_num_genes_per_bin,min_log_disp=-10,max_log_disp=10)
 	else:
 		log_mean_log_disp_coef = np.array([1e-1000]) # i.e. use Poisson (mean equals the variance; if log_disp = 1e-1000, np.exp(log_disp) ~ 0)
@@ -353,7 +353,7 @@ def run(adata,
 			vi_batch_size = vi_batch_size,
 			vi_num_workers = vi_num_workers,
 			vi_pin_memory = vi_pin_memory,
-			batch_indicator_mat = batch_indicator_mat,
+			batch_indicator_mat = None,
 			detect_anomaly = detect_anomaly)
 
 
@@ -529,7 +529,7 @@ def run(adata,
 			pin_memory = vi_pin_memory,
 			use_nb = use_nb,
 			log_mean_log_disp_coef = log_mean_log_disp_coef,
-			batch_indicator_mat = batch_indicator_mat,
+			batch_indicator_mat = None,
 			detect_anomaly = detect_anomaly)
 
 
@@ -584,7 +584,7 @@ def run(adata,
 			pin_memory = vi_pin_memory,
 			use_nb = use_nb,
 			log_mean_log_disp_coef = log_mean_log_disp_coef,
-			batch_indicator_mat = batch_indicator_mat,
+			batch_indicator_mat = None,
 			detect_anomaly = detect_anomaly)
 
 

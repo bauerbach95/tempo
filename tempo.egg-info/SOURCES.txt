@@ -74,6 +74,7 @@ tempo/data_loader.py
 tempo/estimate_mean_disp_relationship.py
 tempo/gene_fit.py
 tempo/generate_null_dist.py
+tempo/harmonic_regression.py
 tempo/hvg_selection.py
 tempo/objective_functions.py
 tempo/params_to_df.py
