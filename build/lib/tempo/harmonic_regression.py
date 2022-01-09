@@ -30,7 +30,7 @@ def run(adata,
 	bulk_cycler_info_path,
 	min_gene_prop = 1e-5,
 	min_amp = 0.0, # ** prep parameters **
-	max_amp = 1.5,
+	max_amp = 1.5 / np.log10(np.e),
 	init_mesor_scale_val = 0.3,
 	prior_mesor_scale_val = 0.5,
 	init_amp_loc_val = 0.5,

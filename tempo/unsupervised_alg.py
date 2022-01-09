@@ -659,13 +659,14 @@ def run(adata,
 
 
 		# break if evidence for core clock expression has converged
-		if prev_evidence is None:
-			prev_evidence = cycler_evidence
-		else:
-			evidence_improvement = ((cycler_evidence - prev_evidence) / np.abs(prev_evidence))
-			print("Evidence improvement at algorithm step %s: %s" % (algorithm_step, evidence_improvement))
-			if evidence_improvement <= evidence_improvement_threshold:
-				break
+		if use_clock_output_only:
+			if prev_evidence is None:
+				prev_evidence = cycler_evidence
+			else:
+				evidence_improvement = ((cycler_evidence - prev_evidence) / np.abs(prev_evidence))
+				print("Evidence improvement at algorithm step %s: %s" % (algorithm_step, evidence_improvement))
+				if (evidence_improvement <= evidence_improvement_threshold):
+					break
 
 
 

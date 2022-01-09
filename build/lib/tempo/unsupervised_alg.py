@@ -32,7 +32,7 @@ def run(adata,
 	reference_gene = 'Arntl',
 	min_gene_prop = 1e-5,
 	min_amp = 0.0, # ** prep parameters **
-	max_amp = 1.5,
+	max_amp = 1.5 / np.log10(np.e),
 	init_mesor_scale_val = 0.3,
 	prior_mesor_scale_val = 0.5,
 	init_amp_loc_val = 0.5,
@@ -659,13 +659,14 @@ def run(adata,
 
 
 		# break if evidence for core clock expression has converged
-		if prev_evidence is None:
-			prev_evidence = cycler_evidence
-		else:
-			evidence_improvement = ((cycler_evidence - prev_evidence) / np.abs(prev_evidence))
-			print("Evidence improvement at algorithm step %s: %s" % (algorithm_step, evidence_improvement))
-			if evidence_improvement <= evidence_improvement_threshold:
-				break
+		if use_clock_output_only:
+			if prev_evidence is None:
+				prev_evidence = cycler_evidence
+			else:
+				evidence_improvement = ((cycler_evidence - prev_evidence) / np.abs(prev_evidence))
+				print("Evidence improvement at algorithm step %s: %s" % (algorithm_step, evidence_improvement))
+				if (evidence_improvement <= evidence_improvement_threshold):
+					break
 
 
 
