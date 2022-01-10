@@ -46,7 +46,6 @@ class ThetaPosteriorDist():
 		return shifted_posterior_likelihood, shifted_indices
 
 	def get_shifted_posterior_likelihood(self,radian_shift):
-		radian_shift = (4 / 24) * 2 * np.pi
 		radian_shift_discretized = np.round((radian_shift / (2 * np.pi)) * 24)
 		print("printing radian shift discretized: %s" % str(radian_shift_discretized))
 		shifted_posterior_likelihood = copy.deepcopy(self.theta_posterior_likelihood)

@@ -22,7 +22,8 @@ class ThetaPosteriorDist():
 
 	def rsample(self,num_samples):
 		cell_phase_samples = torch.zeros((self.num_cells,num_samples))
-		phase_grid_reshaped = torch.linspace(0,2*np.pi,self.num_grid_points).double().reshape(-1,1) # [num_grid_points x 1]
+		# phase_grid_reshaped = torch.linspace(0,2*np.pi,self.num_grid_points).double().reshape(-1,1) # [num_grid_points x 1]
+		phase_grid_reshaped = torch.arange(0,2*np.pi,(2 * np.pi) / 24).double().reshape(-1,1) # [num_grid_points x 1]
 		logits = torch.log(torch.clamp(self.theta_posterior_likelihood,min=1e-300)) # clamping for numerical stability
 		for sample_index in range(0,num_samples):
 			is_cycler_sample = torch.nn.functional.gumbel_softmax(logits = logits,
@@ -46,7 +47,6 @@ class ThetaPosteriorDist():
 		return shifted_posterior_likelihood, shifted_indices
 
 	def get_shifted_posterior_likelihood(self,radian_shift):
-		radian_shift = (4 / 24) * 2 * np.pi
 		radian_shift_discretized = np.round((radian_shift / (2 * np.pi)) * 24)
 		print("printing radian shift discretized: %s" % str(radian_shift_discretized))
 		shifted_posterior_likelihood = copy.deepcopy(self.theta_posterior_likelihood)
