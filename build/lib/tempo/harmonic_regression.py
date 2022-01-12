@@ -192,6 +192,14 @@ def run(adata,
 
 	# ** prep **
 	hv_gene_X, log_L, hv_gene_param_dict, hv_gene_prior_dict = prep.harmonic_regression_prep(hv_adata,**config_dict)
+
+
+
+	print("WARNING: NEED TO GET RID OF THIS IN PRODUCTION")
+	torch.save(hv_gene_param_dict, '/users/benauerbach/desktop/test.pt')
+
+
+
 	hv_gene_prior_dict['prior_Q_prob_alpha'] = 999.0 * torch.ones(hv_adata.shape[1]) # just for this, set the HV Q prob prior to non-informative
 	hv_gene_prior_dict['prior_Q_prob_beta'] = torch.ones(hv_adata.shape[1])
 	hv_gene_param_dict['Q_prob_log_alpha'] = torch.nn.Parameter(torch.log(999.0 * torch.ones(hv_adata.shape[1])).detach(),requires_grad=True) # fit Q params to values that yield Q =~ 1
