@@ -242,7 +242,7 @@ def get_prior_shift_params(adata,
 		prior_phi_euclid_loc = np.zeros((adata.shape[1],2))
 		prior_phi_euclid_loc[:,0] = np.array(adata.var['prior_phi_euclid_cos'])
 		prior_phi_euclid_loc[:,1] = np.array(adata.var['prior_phi_euclid_sin'])
-		prior_phi_scale = np.array(adata.var['prior_phi_scale'])
+		prior_phi_scale = np.array(adata.var['prior_phi_scale']).reshape(-1,1)
 
 		# get parameters
 		prior_phi_euclid_loc = torch.Tensor(prior_phi_euclid_loc)

@@ -86,7 +86,7 @@ def run(adata,
 	confident_cell_interval_size_threshold = 12.0,
 	max_num_alg_steps=3,
 	evidence_improvement_threshold=0.001,
-	fraction_improvement_over_random_threshold=0.001,
+	fraction_improvement_over_random_threshold=0.01,
 	**kwargs):
 
 
