@@ -86,6 +86,7 @@ def run(adata,
 	confident_cell_interval_size_threshold = 12.0,
 	max_num_alg_steps=3,
 	evidence_improvement_threshold=0.001,
+	fraction_improvement_over_random_threshold=0.01,
 	**kwargs):
 
 
@@ -406,6 +407,9 @@ def run(adata,
 
 		# ** compute the percentile **
 		percentile_in_null = scipy.stats.percentileofscore(null_ll_vec,cycler_evidence)
+		null_median = np.median(null_ll_vec)
+		fraction_improvement_over_random = (cycler_evidence - null_median) / np.abs(null_median)
+
 
 
 		# ** write **
@@ -415,15 +419,20 @@ def run(adata,
 		fileout = '%s/step_%s_cycler_evidence.txt' % (null_fits_folder_out, algorithm_step)
 		with open(fileout,"wb") as file_obj:
 			file_obj.write(str(cycler_evidence).encode())
+		fileout = '%s/step_%s_cycler_evidence_fraction_improvement_over_random.txt' % (null_fits_folder_out, algorithm_step)
+		with open(fileout,"wb") as file_obj:
+			file_obj.write(str(fraction_improvement_over_random).encode())
 
 
-
-		print("Cycler evidence percentile in null distribution: %s" % percentile_in_null)
-
-
-
-
-
+		# ** halt algorithm progression if not sufficiently better than random **
+		print("Cycler evidence percentile in null distribution: %s; Fraction improvement over random: %s" % (percentile_in_null,fraction_improvement_over_random))
+		if use_clock_output_only:
+			# if percentile_in_null < null_percentile_threshold:
+			# 	print("Cycler evidence not sufficiently better than random. Halting algorithm.")
+			# 	break
+			if fraction_improvement_over_random < fraction_improvement_over_random_threshold:
+				print("Cycler evidence not sufficiently better than random. Halting algorithm.")
+				break
 
 
 

@@ -10,6 +10,7 @@ class ThetaPosteriorDist():
 	def __init__(self,theta_posterior_likelihood):
 		self.theta_posterior_likelihood = theta_posterior_likelihood
 		self.num_grid_points = theta_posterior_likelihood.shape[1]
+		self.phase_grid = torch.arange(0,2*np.pi,(2 * np.pi) / self.num_grid_points)
 		max_comp = torch.max(self.theta_posterior_likelihood,dim=1)
 		self.map_certainty = max_comp.values
 		self.map_uncertainty = 1.0 - self.map_certainty
@@ -23,7 +24,7 @@ class ThetaPosteriorDist():
 	def rsample(self,num_samples):
 		cell_phase_samples = torch.zeros((self.num_cells,num_samples))
 		# phase_grid_reshaped = torch.linspace(0,2*np.pi,self.num_grid_points).double().reshape(-1,1) # [num_grid_points x 1]
-		phase_grid_reshaped = torch.arange(0,2*np.pi,(2 * np.pi) / 24).double().reshape(-1,1) # [num_grid_points x 1]
+		phase_grid_reshaped = self.phase_grid.double().reshape(-1,1) # [num_grid_points x 1]
 		logits = torch.log(torch.clamp(self.theta_posterior_likelihood,min=1e-300)) # clamping for numerical stability
 		for sample_index in range(0,num_samples):
 			is_cycler_sample = torch.nn.functional.gumbel_softmax(logits = logits,
