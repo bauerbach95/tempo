@@ -226,7 +226,6 @@ def compute_mc_expectation_log_likelihood(gene_X, log_L,
 
 
 
-
 	# --- COMPUTE EXPECTATION OF LOG LIKELIHOOD W.R.T CELLS OR GENES ---
 	if exp_over_cells:
 		expectation_log_likelihood = torch.mean(torch.sum(log_likelihood_sampled,dim=0).view(-1, log_likelihood_sampled.shape[2] * log_likelihood_sampled.shape[3]),dim=1)
