@@ -129,6 +129,7 @@ def gene_fit(gene_X,
 	log_mean_log_disp_coef = None,
 	batch_indicator_mat = None,
 	detect_anomaly = False,
+	expectation_point_est_only = False,
 	**kwargs):
 
 
@@ -230,7 +231,8 @@ def gene_fit(gene_X,
 							use_flat_model = use_flat_model,
 							use_nb = use_nb,
 							log_mean_log_disp_coef = log_mean_log_disp_coef,
-							batch_indicator_mat = batch_data['batch_indicator_mat'])
+							batch_indicator_mat = batch_data['batch_indicator_mat'],
+							expectation_point_est_only = expectation_point_est_only)
 
 
 
