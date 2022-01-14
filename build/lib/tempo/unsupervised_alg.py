@@ -389,17 +389,29 @@ def run(adata,
 		# ** get the loc scale dict **
 		gene_param_loc_scale_dict = utils.get_distribution_loc_and_scale(gene_param_dict = opt_cycler_gene_param_dict_unprepped, min_amp = min_amp, max_amp = max_amp, prep = True)
 
+		# ** get the distrib dict **
+		distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = opt_cycler_gene_param_dict_unprepped, max_amp = max_amp, min_amp = min_amp, prep = True)
 
 		# ** get theta sampled **
 		theta_sampled = cell_posterior.ThetaPosteriorDist(opt_cycler_theta_posterior_likelihood).sample(num_samples=num_cell_samples)
 
 
 		# ** compute expectation of the LL for each cell **
+		# cycler_cell_evidence = objective_functions.compute_expectation_log_likelihood(clock_X if use_clock_output_only else cycler_gene_X, log_L,
+		# 	theta_sampled = theta_sampled, mu_loc = gene_param_loc_scale_dict['mu_loc'][clock_indices], A_loc = gene_param_loc_scale_dict['A_loc'][clock_indices],
+		# 	phi_euclid_loc = gene_param_loc_scale_dict['phi_euclid_loc'][clock_indices], Q_prob_loc = gene_param_loc_scale_dict['Q_prob_loc'][clock_indices],
+		# 	use_is_cycler_indicators = gene_param_loc_scale_dict['Q_prob_loc'] is not None, exp_over_cells = True, use_flat_model = False,
+		# 	use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = False)
 		cycler_cell_evidence = objective_functions.compute_expectation_log_likelihood(clock_X if use_clock_output_only else cycler_gene_X, log_L,
-			theta_sampled = theta_sampled, mu_loc = gene_param_loc_scale_dict['mu_loc'][clock_indices], A_loc = gene_param_loc_scale_dict['A_loc'][clock_indices],
-			phi_euclid_loc = gene_param_loc_scale_dict['phi_euclid_loc'][clock_indices], Q_prob_loc = gene_param_loc_scale_dict['Q_prob_loc'][clock_indices],
-			use_is_cycler_indicators = gene_param_loc_scale_dict['Q_prob_loc'] is not None, exp_over_cells = True, use_flat_model = False,
-			use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = False)
+			theta_sampled = theta_sampled,
+			mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
+			num_gene_samples = num_phase_est_gene_samples, exp_over_cells = True, use_flat_model = False,
+			use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = False, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
+
+
+
+
+
 
 
 		# ** compute expectation over cells **

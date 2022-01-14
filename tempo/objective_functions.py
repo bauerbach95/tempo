@@ -208,8 +208,8 @@ def compute_sample_log_likelihood(gene_X, log_L,
 #		- rsample (bool): whether to track gradients or not when sampling (used for learning parameters)
 # - Outputs:
 #		- expectation_log_likelihood ([num_cells] or [num_genes] Tensor of floats): Tensor of expected log likelihoods for genes or cells (depending on exp_over_cells)
-
-def compute_mc_expectation_log_likelihood(gene_X, log_L,
+# def compute_mc_expectation_log_likelihood()
+def compute_expectation_log_likelihood(gene_X, log_L,
 	theta_sampled = None, mu_sampled = None, A_sampled = None, phi_sampled = None, Q_sampled = None,
 	theta_euclid_dist = None, mu_dist = None, A_dist = None, phi_euclid_dist = None, Q_prob_dist = None,
 	num_cell_samples = 5, num_gene_samples = 5, exp_over_cells = True, use_flat_model = False,
@@ -435,7 +435,7 @@ def compute_loss(gene_X,
 
 
 	
-	expectation_log_likelihood = compute_mc_expectation_log_likelihood(gene_X, log_L,
+	expectation_log_likelihood = compute_expectation_log_likelihood(gene_X, log_L,
 		theta_sampled = theta_sampled,
 		mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
 		num_gene_samples = num_gene_samples, exp_over_cells = exp_over_cells, use_flat_model = use_flat_model,

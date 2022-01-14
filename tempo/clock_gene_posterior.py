@@ -115,7 +115,7 @@ class ClockGenePosterior(torch.nn.Module):
 		# 	use_nb = self.use_nb, log_mean_log_disp_coef = self.log_mean_log_disp_coef, batch_indicator_mat = None, B_loc = None, rsample = True)
 
 
-		clock_gene_expectation_log_likelihood = objective_functions.compute_mc_expectation_log_likelihood(gene_X = gene_X[:,self.clock_indices], log_L = log_L, theta_sampled = theta_sampled,
+		clock_gene_expectation_log_likelihood = objective_functions.compute_expectation_log_likelihood(gene_X = gene_X[:,self.clock_indices], log_L = log_L, theta_sampled = theta_sampled,
 			mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
 			num_gene_samples = num_gene_samples, exp_over_cells = False, use_flat_model = False,
 			use_nb = self.use_nb, log_mean_log_disp_coef = self.log_mean_log_disp_coef, rsample = True, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)

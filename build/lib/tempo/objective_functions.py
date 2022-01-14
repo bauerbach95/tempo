@@ -208,8 +208,8 @@ def compute_sample_log_likelihood(gene_X, log_L,
 #		- rsample (bool): whether to track gradients or not when sampling (used for learning parameters)
 # - Outputs:
 #		- expectation_log_likelihood ([num_cells] or [num_genes] Tensor of floats): Tensor of expected log likelihoods for genes or cells (depending on exp_over_cells)
-
-def compute_mc_expectation_log_likelihood(gene_X, log_L,
+# def compute_mc_expectation_log_likelihood()
+def compute_expectation_log_likelihood(gene_X, log_L,
 	theta_sampled = None, mu_sampled = None, A_sampled = None, phi_sampled = None, Q_sampled = None,
 	theta_euclid_dist = None, mu_dist = None, A_dist = None, phi_euclid_dist = None, Q_prob_dist = None,
 	num_cell_samples = 5, num_gene_samples = 5, exp_over_cells = True, use_flat_model = False,
@@ -238,57 +238,78 @@ def compute_mc_expectation_log_likelihood(gene_X, log_L,
 
 
 
-def compute_expectation_log_likelihood(gene_X, log_L,
-		theta_sampled, mu_loc, A_loc = None, phi_euclid_loc = None, Q_prob_loc = None,
-		use_is_cycler_indicators = False, exp_over_cells = True, use_flat_model = False,
-		use_nb = False, log_mean_log_disp_coef = None, batch_indicator_mat = None, B_loc = None, rsample = True):
+# def compute_expectation_log_likelihood(gene_X, log_L,
+# 		theta_sampled, mu_loc, A_loc = None, phi_euclid_loc = None, Q_prob_loc = None,
+# 		use_is_cycler_indicators = False, exp_over_cells = True, use_flat_model = False,
+# 		use_nb = False, log_mean_log_disp_coef = None, batch_indicator_mat = None, B_loc = None, rsample = True):
 
 	
 
 
+	
 
-
-	# --- COMPUTE LOG LIKELIHOOD OVER SAMPLES CONDITIONAL ON Q = 0 ---
-	Q_0_log_likelihood_sampled = compute_sample_log_likelihood(gene_X, log_L,
-		theta_sampled = theta_sampled,
-		mu_sampled = mu_loc.reshape(1,-1),
-		A_sampled = None if A_loc is None else A_loc.reshape(1,-1),
-		phi_sampled = None if phi_euclid_loc is None else torch.atan2(phi_euclid_loc[:,1],phi_euclid_loc[:,0]).reshape(1,-1),
-		Q_sampled = torch.zeros((1,gene_X.shape[1])),
-		use_flat_model = False,
-		use_nb = use_nb,log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = rsample,
-		batch_indicator_mat = batch_indicator_mat, batch_indicator_effect_mat = B_loc, use_is_cycler_indicators = True)
+# 	if use_is_cycler_indicators:
 
 
 
-	# --- COMPUTE LOG LIKELIHOOD OVER SAMPLES CONDITIONAL ON Q = 1 ---
-	Q_1_log_likelihood_sampled = compute_sample_log_likelihood(gene_X, log_L,
-		theta_sampled = theta_sampled,
-		mu_sampled = mu_loc.reshape(1,-1),
-		A_sampled = None if A_loc is None else A_loc.reshape(1,-1),
-		phi_sampled = None if phi_euclid_loc is None else torch.atan2(phi_euclid_loc[:,1],phi_euclid_loc[:,0]).reshape(1,-1),
-		Q_sampled = torch.ones((1,gene_X.shape[1])),
-		use_flat_model = False,
-		use_nb = use_nb,log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = rsample,
-		batch_indicator_mat = batch_indicator_mat, batch_indicator_effect_mat = B_loc, use_is_cycler_indicators = True)
+# 		# --- COMPUTE LOG LIKELIHOOD OVER SAMPLES CONDITIONAL ON Q = 0 ---
+# 		Q_0_log_likelihood_sampled = compute_sample_log_likelihood(gene_X, log_L,
+# 			theta_sampled = theta_sampled,
+# 			mu_sampled = mu_loc.reshape(1,-1),
+# 			A_sampled = None if A_loc is None else A_loc.reshape(1,-1),
+# 			phi_sampled = None if phi_euclid_loc is None else torch.atan2(phi_euclid_loc[:,1],phi_euclid_loc[:,0]).reshape(1,-1),
+# 			Q_sampled = torch.zeros((1,gene_X.shape[1])),
+# 			use_flat_model = False,
+# 			use_nb = use_nb,log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = rsample,
+# 			batch_indicator_mat = batch_indicator_mat, batch_indicator_effect_mat = B_loc, use_is_cycler_indicators = True)
 
 
 
-	# --- WEIGH THE SAMPLED LL BASED ON Q_LOC ---
-	Q_prob_loc_reshaped = Q_prob_loc.unsqueeze(1).unsqueeze(2).unsqueeze(3)
-	log_likelihood_sampled = (Q_prob_loc_reshaped * Q_1_log_likelihood_sampled) + ((1.0 - Q_prob_loc_reshaped) * Q_0_log_likelihood_sampled)
+# 		# --- COMPUTE LOG LIKELIHOOD OVER SAMPLES CONDITIONAL ON Q = 1 ---
+# 		Q_1_log_likelihood_sampled = compute_sample_log_likelihood(gene_X, log_L,
+# 			theta_sampled = theta_sampled,
+# 			mu_sampled = mu_loc.reshape(1,-1),
+# 			A_sampled = None if A_loc is None else A_loc.reshape(1,-1),
+# 			phi_sampled = None if phi_euclid_loc is None else torch.atan2(phi_euclid_loc[:,1],phi_euclid_loc[:,0]).reshape(1,-1),
+# 			Q_sampled = torch.ones((1,gene_X.shape[1])),
+# 			use_flat_model = False,
+# 			use_nb = use_nb,log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = rsample,
+# 			batch_indicator_mat = batch_indicator_mat, batch_indicator_effect_mat = B_loc, use_is_cycler_indicators = True)
+
+
+# 		# --- WEIGH THE SAMPLED LL BASED ON Q_LOC ---
+# 		Q_prob_loc_reshaped = Q_prob_loc.unsqueeze(1).unsqueeze(2).unsqueeze(3)
+# 		log_likelihood_sampled = (Q_prob_loc_reshaped * Q_1_log_likelihood_sampled) + ((1.0 - Q_prob_loc_reshaped) * Q_0_log_likelihood_sampled)
 
 
 
-	# --- COMPUTE EXPECTATION OF LOG LIKELIHOOD W.R.T CELLS OR GENES ---
-	if exp_over_cells:
-		expectation_log_likelihood = torch.mean(torch.sum(log_likelihood_sampled,dim=0).view(-1, log_likelihood_sampled.shape[2] * log_likelihood_sampled.shape[3]),dim=1)
-	else:
-		expectation_log_likelihood = torch.mean(torch.sum(log_likelihood_sampled,dim=1).view(-1, log_likelihood_sampled.shape[2] * log_likelihood_sampled.shape[3]),dim=1)
+# 	else:
+
+# 		# --- COMPUTE LOG LIKELIHOOD OVER SAMPLES CONDITIONAL ON Q = 1 ---
+# 		log_likelihood_sampled = compute_sample_log_likelihood(gene_X, log_L,
+# 			theta_sampled = theta_sampled,
+# 			mu_sampled = mu_loc.reshape(1,-1),
+# 			A_sampled = None if A_loc is None else A_loc.reshape(1,-1),
+# 			phi_sampled = None if phi_euclid_loc is None else torch.atan2(phi_euclid_loc[:,1],phi_euclid_loc[:,0]).reshape(1,-1),
+# 			Q_sampled = None,
+# 			use_flat_model = False,
+# 			use_nb = use_nb,log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = rsample,
+# 			batch_indicator_mat = batch_indicator_mat, batch_indicator_effect_mat = B_loc, use_is_cycler_indicators = False)
 
 
 
-	return expectation_log_likelihood
+
+
+
+# 	# --- COMPUTE EXPECTATION OF LOG LIKELIHOOD W.R.T CELLS OR GENES ---
+# 	if exp_over_cells:
+# 		expectation_log_likelihood = torch.mean(torch.sum(log_likelihood_sampled,dim=0).view(-1, log_likelihood_sampled.shape[2] * log_likelihood_sampled.shape[3]),dim=1)
+# 	else:
+# 		expectation_log_likelihood = torch.mean(torch.sum(log_likelihood_sampled,dim=1).view(-1, log_likelihood_sampled.shape[2] * log_likelihood_sampled.shape[3]),dim=1)
+
+
+
+# 	return expectation_log_likelihood
 
 
 
@@ -411,7 +432,10 @@ def compute_loss(gene_X,
 	# 	phi_euclid_loc = gene_param_loc_scale_dict['phi_euclid_loc'], Q_prob_loc = gene_param_loc_scale_dict['Q_prob_loc'],
 	# 	use_is_cycler_indicators = distrib_dict['Q_prob'] is not None, exp_over_cells = exp_over_cells, use_flat_model = use_flat_model,
 	# 	use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, batch_indicator_mat = batch_indicator_mat, B_loc = None, rsample = True)
-	expectation_log_likelihood = compute_mc_expectation_log_likelihood(gene_X, log_L,
+
+
+	
+	expectation_log_likelihood = compute_expectation_log_likelihood(gene_X, log_L,
 		theta_sampled = theta_sampled,
 		mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
 		num_gene_samples = num_gene_samples, exp_over_cells = exp_over_cells, use_flat_model = use_flat_model,

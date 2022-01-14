@@ -53,15 +53,28 @@ def generate(adata,null_head_folder_out,learning_rate_dict,log_mean_log_disp_coe
 
 
 
-		# ** get the loc scale dict **
-		gene_param_loc_scale_dict = utils.get_distribution_loc_and_scale(gene_param_dict = rand_gene_param_dict, min_amp = min_amp, max_amp = max_amp, prep = True)
+		# # ** get the loc scale dict **
+		# gene_param_loc_scale_dict = utils.get_distribution_loc_and_scale(gene_param_dict = rand_gene_param_dict, min_amp = min_amp, max_amp = max_amp, prep = True)
+
+		# # ** compute expectation of the LL **
+		# random_harmonic_expectation_cell_log_likelihood = objective_functions.compute_expectation_log_likelihood(gene_X, log_L,
+		# 	theta_sampled = theta_rand.reshape(-1,1), mu_loc = gene_param_loc_scale_dict['mu_loc'], A_loc = gene_param_loc_scale_dict['A_loc'],
+		# 	phi_euclid_loc = gene_param_loc_scale_dict['phi_euclid_loc'], Q_prob_loc = gene_param_loc_scale_dict['Q_prob_loc'],
+		# 	use_is_cycler_indicators = gene_param_loc_scale_dict['Q_prob_loc'] is not None, exp_over_cells = True, use_flat_model = False,
+		# 	use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = False)
+
+
+
+		# ** get distribution dict **
+		distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = rand_gene_param_dict, max_amp = max_amp, min_amp = min_amp, prep = True)
 
 		# ** compute expectation of the LL **
-		random_harmonic_expectation_cell_log_likelihood = objective_functions.compute_expectation_log_likelihood(gene_X, log_L,
-			theta_sampled = theta_rand.reshape(-1,1), mu_loc = gene_param_loc_scale_dict['mu_loc'], A_loc = gene_param_loc_scale_dict['A_loc'],
-			phi_euclid_loc = gene_param_loc_scale_dict['phi_euclid_loc'], Q_prob_loc = gene_param_loc_scale_dict['Q_prob_loc'],
-			use_is_cycler_indicators = gene_param_loc_scale_dict['Q_prob_loc'] is not None, exp_over_cells = True, use_flat_model = False,
-			use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = False)
+		random_harmonic_expectation_cell_log_likelihood = objective_functions.compute_expectation_log_likelihood(gene_X = gene_X, log_L = log_L, theta_sampled = theta_rand.reshape(-1,1),
+			mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
+			num_gene_samples = num_gene_samples, exp_over_cells = True, use_flat_model = False,
+			use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = False, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
+
+
 
 		
 		# ** compute expectation over cells **
