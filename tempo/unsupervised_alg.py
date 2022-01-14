@@ -65,9 +65,10 @@ def run(adata,
 	Q_prob_log_alpha_lr = 1e-1,
 	Q_prob_log_beta_lr = 1e-1,
 	num_phase_grid_points = 24,
-	num_cell_samples = 10,
-	num_harmonic_est_gene_samples = 5,
+	num_phase_est_cell_samples = 10,
 	num_phase_est_gene_samples = 10,
+	num_harmonic_est_cell_samples = 5,
+	num_harmonic_est_gene_samples = 3,
 	vi_max_epochs = 300,
 	vi_print_epoch_loss = True,
 	vi_improvement_window = 10,
@@ -344,7 +345,7 @@ def run(adata,
 			use_nb = use_nb,
 			log_mean_log_disp_coef = log_mean_log_disp_coef,
 			num_grid_points = num_phase_grid_points,
-			num_cell_samples = num_cell_samples,
+			num_cell_samples = num_phase_est_cell_samples,
 			num_gene_samples = num_phase_est_gene_samples,
 			vi_max_epochs = vi_max_epochs,
 			vi_print_epoch_loss = vi_print_epoch_loss,
@@ -393,7 +394,7 @@ def run(adata,
 		distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = opt_cycler_gene_param_dict_unprepped, max_amp = max_amp, min_amp = min_amp, prep = True)
 
 		# ** get theta sampled **
-		theta_sampled = cell_posterior.ThetaPosteriorDist(opt_cycler_theta_posterior_likelihood).sample(num_samples=num_cell_samples)
+		theta_sampled = cell_posterior.ThetaPosteriorDist(opt_cycler_theta_posterior_likelihood).sample(num_samples=num_phase_est_cell_samples)
 
 
 		# ** compute expectation of the LL for each cell **
@@ -511,7 +512,7 @@ def run(adata,
 
 
 
-		# --- BUTNING IN HVG PARAMETERS WHEN Q FIXED TO 1 ---
+		# --- BURNING IN HVG PARAMETERS WHEN Q FIXED TO 1 ---
 
 		print("--- BURNING IN HARMONIC PARAMETERS FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
 
@@ -540,8 +541,8 @@ def run(adata,
 			theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
 			gene_param_grad_dict = gene_param_grad_dict,
 			max_iters = vi_max_epochs, 
-			num_cell_samples = num_cell_samples,
-			num_gene_samples = num_harmonic_est_gene_samples,
+			num_cell_samples = num_harmonic_est_cell_samples,
+			num_gene_samples = 1,
 			max_amp = max_amp,
 			min_amp = min_amp,
 			print_epoch_loss = vi_print_epoch_loss,
@@ -557,7 +558,7 @@ def run(adata,
 			log_mean_log_disp_coef = log_mean_log_disp_coef,
 			batch_indicator_mat = None,
 			detect_anomaly = detect_anomaly,
-			expectation_point_est_only = True)
+			expectation_point_est_only = False)
 
 
 
@@ -573,6 +574,7 @@ def run(adata,
 		# --- FIT HVG PARAMETERS WHEN Q FIXED TO 1 ---
 
 		print("--- FITTING HARMONIC PARAMETERS FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
+
 
 
 		# # ** prep **
@@ -599,7 +601,7 @@ def run(adata,
 			theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
 			gene_param_grad_dict = gene_param_grad_dict,
 			max_iters = vi_max_epochs, 
-			num_cell_samples = num_cell_samples,
+			num_cell_samples = num_harmonic_est_cell_samples,
 			num_gene_samples = num_harmonic_est_gene_samples,
 			max_amp = max_amp,
 			min_amp = min_amp,
@@ -645,8 +647,8 @@ def run(adata,
 			theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
 			gene_param_grad_dict = gene_param_grad_dict,
 			max_iters = vi_max_epochs, 
-			num_cell_samples = num_cell_samples,
-			num_gene_samples = num_harmonic_est_gene_samples,
+			num_cell_samples = num_harmonic_est_cell_samples,
+			num_gene_samples = 1,
 			max_amp = max_amp,
 			min_amp = min_amp,
 			print_epoch_loss = vi_print_epoch_loss,
@@ -662,7 +664,7 @@ def run(adata,
 			log_mean_log_disp_coef = log_mean_log_disp_coef,
 			batch_indicator_mat = None,
 			detect_anomaly = detect_anomaly,
-			expectation_point_est_only = True)
+			expectation_point_est_only = False) # True
 
 
 
@@ -694,7 +696,7 @@ def run(adata,
 			theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
 			gene_param_grad_dict = gene_param_grad_dict,
 			max_iters = vi_max_epochs, 
-			num_cell_samples = num_cell_samples,
+			num_cell_samples = num_harmonic_est_cell_samples,
 			num_gene_samples = num_harmonic_est_gene_samples,
 			max_amp = max_amp,
 			min_amp = min_amp,

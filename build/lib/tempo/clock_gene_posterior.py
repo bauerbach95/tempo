@@ -121,11 +121,6 @@ class ClockGenePosterior(torch.nn.Module):
 			use_nb = self.use_nb, log_mean_log_disp_coef = self.log_mean_log_disp_coef, rsample = True, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
 
 
-
-
-
-
-
 		# --- COMPUTE THE KL OF THE CORE CLOCK GENES AND THE HVG ---
 
 		# ** get variational and prior dist lists **
