@@ -416,34 +416,48 @@ def compute_loss(gene_X,
 				use_flat_model = False,
 				use_nb = False,
 				log_mean_log_disp_coef = None,
-				batch_indicator_mat = None):
+				batch_indicator_mat = None,
+				expectation_point_est_only = False):
 	
 
 
 
-	# ** get distribution dict **
-	distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = gene_param_dict, gene_prior_dict = gene_prior_dict, max_amp = max_amp, min_amp = min_amp)
+	# ** get distribution dict and loc scale dict **
+	distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = gene_param_dict, gene_prior_dict = gene_prior_dict, max_amp = max_amp, min_amp = min_amp, prep = True)
+	gene_param_loc_scale_dict = utils.get_distribution_loc_and_scale(gene_param_dict=gene_param_dict, min_amp = min_amp, max_amp = max_amp, prep = True)
 
 
 	# ** compute the expectation of the gene log likelihood **
-	gene_param_loc_scale_dict = utils.get_distribution_loc_and_scale(gene_param_dict=gene_param_dict, min_amp = min_amp, max_amp = max_amp, prep = True)
-	# expectation_log_likelihood = compute_expectation_log_likelihood(gene_X, log_L,
-	# 	theta_sampled = theta_sampled, mu_loc = gene_param_loc_scale_dict['mu_loc'], A_loc = gene_param_loc_scale_dict['A_loc'],
-	# 	phi_euclid_loc = gene_param_loc_scale_dict['phi_euclid_loc'], Q_prob_loc = gene_param_loc_scale_dict['Q_prob_loc'],
-	# 	use_is_cycler_indicators = distrib_dict['Q_prob'] is not None, exp_over_cells = exp_over_cells, use_flat_model = use_flat_model,
-	# 	use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, batch_indicator_mat = batch_indicator_mat, B_loc = None, rsample = True)
+	if expectation_point_est_only:
+
+		# get flat LL
+		Q_0_expectation_log_likelihood = compute_expectation_log_likelihood(gene_X, log_L,
+			theta_sampled = theta_sampled,
+			mu_sampled = gene_param_loc_scale_dict['mu_loc'].reshape(1,-1),
+			exp_over_cells = exp_over_cells, use_flat_model = True,
+			use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = True, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
+		
+		# get harmonic LL
+		Q_1_expectation_log_likelihood = compute_expectation_log_likelihood(gene_X, log_L,
+			theta_sampled = theta_sampled,
+			mu_sampled = gene_param_loc_scale_dict['mu_loc'].reshape(1,-1),
+			A_sampled = None if gene_param_loc_scale_dict['A'] is None else gene_param_loc_scale_dict['A'].reshape(1,-1),
+			phi_sampled = None if gene_param_loc_scale_dict['phi_euclid'] is None else torch.atan2(gene_param_loc_scale_dict['phi_euclid'][:,1],gene_param_loc_scale_dict['phi_euclid'][:,0]).reshape(1,-1),
+			Q_sampled = torch.ones((1,gene_X.shape[1])),
+			exp_over_cells = exp_over_cells, use_flat_model = use_flat_model,
+			use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = True, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
+
+		# weigh LL based on Q loc
+		Q_prob_loc_reshaped = gene_param_loc_scale_dict['Q_prob'].unsqueeze(1).unsqueeze(2).unsqueeze(3)
+		expectation_log_likelihood = (Q_prob_loc_reshaped * Q_1_log_likelihood_sampled) + ((1.0 - Q_prob_loc_reshaped) * Q_0_log_likelihood_sampled)
 
 
-	
-	expectation_log_likelihood = compute_expectation_log_likelihood(gene_X, log_L,
-		theta_sampled = theta_sampled,
-		mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
-		num_gene_samples = num_gene_samples, exp_over_cells = exp_over_cells, use_flat_model = use_flat_model,
-		use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = True, batch_indicator_mat = batch_indicator_mat, batch_indicator_effect_mat = None, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
-
-
-
-
+	else:
+		expectation_log_likelihood = compute_expectation_log_likelihood(gene_X, log_L,
+			theta_sampled = theta_sampled,
+			mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
+			num_gene_samples = num_gene_samples, exp_over_cells = exp_over_cells, use_flat_model = use_flat_model,
+			use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = True, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
 
 
 
