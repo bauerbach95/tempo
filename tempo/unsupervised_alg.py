@@ -163,6 +163,7 @@ def run(adata,
 	# --- GET CORE CLOCK GENES ---
 	core_clock_genes = list(pd.read_table(core_clock_gene_path,header=None).iloc[:,0])
 	core_clock_genes = list(filter(lambda x: x in adata.var_names, core_clock_genes))
+	core_clock_genes = list(filter(lambda x: adata.var.loc[x]['prop'] > 0, core_clock_genes))
 	core_clock_genes = np.array(list(sorted(core_clock_genes)))
 
 
@@ -194,7 +195,6 @@ def run(adata,
 	# --- RESTRICT ADATA TO ONLY GENES WITH PROP >= MIN_GENE_PROP / CORE CLOCK ---
 
 	print("--- RESTRICTING CANDIDATE HIGHLY VARIABLE GENES BASED ON MINIMUM PROPORTION IN PSEUDOBULK ---")
-
 	adata = adata[:,(adata.var['prop'] >= min_gene_prop) | (np.isin(adata.var_names, core_clock_genes))]
 
 	print("Adata shape after thresholding minimum proportion")
@@ -330,6 +330,8 @@ def run(adata,
 
 
 
+
+
 		# ** run **
 		opt_cycler_theta_posterior_likelihood, opt_cycler_gene_param_dict_unprepped = clock_posterior_opt.run(gene_X = cycler_gene_X,
 			clock_indices = clock_indices,
@@ -439,8 +441,9 @@ def run(adata,
 
 
 		# ** halt algorithm progression if not sufficiently better than random **
-		print("Cycler evidence percentile in null distribution: %s; Fraction improvement over random: %s" % (percentile_in_null,fraction_improvement_over_random))
+		
 		if use_clock_output_only:
+			print("Cycler evidence percentile in null distribution: %s; Fraction improvement over random: %s" % (percentile_in_null,fraction_improvement_over_random))
 			# if percentile_in_null < null_percentile_threshold:
 			# 	print("Cycler evidence not sufficiently better than random. Halting algorithm.")
 			# 	break
