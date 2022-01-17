@@ -89,6 +89,7 @@ def run(adata,
 	max_num_alg_steps=3,
 	evidence_improvement_threshold=0.001,
 	fraction_improvement_over_random_threshold=0.01,
+	opt_phase_est_gene_params = True,
 	**kwargs):
 
 
@@ -337,9 +338,6 @@ def run(adata,
 		theta_posterior_likelihood_init = cycler_gene_posterior_obj_init.compute_cell_phase_posterior_likelihood(cycler_gene_X,log_L,prior_theta_euclid_dist,num_gene_samples=100)
 
 
-
-		# ** write out the params / priors as a DataFrame **
-
 		# get df's
 		cell_posterior_df = params_to_df.cell_multinomial_params_to_param_df(np.array(cycler_adata.obs.index), theta_posterior_likelihood_init)
 		cell_prior_df = params_to_df.cell_powerspherical_params_dict_to_param_df(np.array(cycler_adata.obs.index), cell_prior_dict)
@@ -347,6 +345,8 @@ def run(adata,
 
 
 		# write
+		if not os.path.exists('%s/cell_phase_estimation' % alg_step_subfolder):
+			os.makedirs('%s/cell_phase_estimation' % alg_step_subfolder)
 		cell_posterior_fileout = '%s/cell_phase_estimation/cell_posterior_init.tsv' % alg_step_subfolder # % (folder_out)
 		cell_posterior_df.to_csv(cell_posterior_fileout,sep='\t')
 		cell_prior_fileout = '%s/cell_phase_estimation/cell_prior_init.tsv' % alg_step_subfolder #  % (folder_out)
@@ -355,37 +355,39 @@ def run(adata,
 		gene_param_df.to_csv(gene_param_df_fileout,sep='\t')
 
 
-		raise Exception("TOSSING IT HERE")
 
-
-		# ** run **
-		opt_cycler_theta_posterior_likelihood, opt_cycler_gene_param_dict_unprepped = clock_posterior_opt.run(gene_X = cycler_gene_X,
-			clock_indices = clock_indices,
-			log_L = log_L,
-			gene_param_dict = cycler_gene_param_dict,
-			gene_prior_dict = cycler_gene_prior_dict,
-			min_amp = min_amp,
-			max_amp = max_amp,
-			prior_theta_euclid_dist = prior_theta_euclid_dist, # clock_posterior_dist
-			folder_out = '%s/cell_phase_estimation' % alg_step_subfolder, # '%s/clock_and_confident_hv_inference' % folder_out,
-			learning_rate_dict = vi_gene_param_lr_dict,
-			gene_param_grad_dict = None,
-			use_nb = use_nb,
-			log_mean_log_disp_coef = log_mean_log_disp_coef,
-			num_grid_points = num_phase_grid_points,
-			num_cell_samples = num_phase_est_cell_samples,
-			num_gene_samples = num_phase_est_gene_samples,
-			vi_max_epochs = vi_max_epochs,
-			vi_print_epoch_loss = vi_print_epoch_loss,
-			vi_improvement_window = vi_improvement_window,
-			vi_convergence_criterion = vi_convergence_criterion,
-			vi_lr_scheduler_patience = vi_lr_scheduler_patience,
-			vi_lr_scheduler_factor = vi_lr_scheduler_factor,
-			vi_batch_size = vi_batch_size,
-			vi_num_workers = vi_num_workers,
-			vi_pin_memory = vi_pin_memory,
-			batch_indicator_mat = None,
-			detect_anomaly = detect_anomaly)
+		# ** estimate cell phase and optimize gene parameters **
+		if opt_phase_est_gene_params:
+			opt_cycler_theta_posterior_likelihood, opt_cycler_gene_param_dict_unprepped = clock_posterior_opt.run(gene_X = cycler_gene_X,
+				clock_indices = clock_indices,
+				log_L = log_L,
+				gene_param_dict = cycler_gene_param_dict,
+				gene_prior_dict = cycler_gene_prior_dict,
+				min_amp = min_amp,
+				max_amp = max_amp,
+				prior_theta_euclid_dist = prior_theta_euclid_dist, # clock_posterior_dist
+				folder_out = '%s/cell_phase_estimation' % alg_step_subfolder, # '%s/clock_and_confident_hv_inference' % folder_out,
+				learning_rate_dict = vi_gene_param_lr_dict,
+				gene_param_grad_dict = None,
+				use_nb = use_nb,
+				log_mean_log_disp_coef = log_mean_log_disp_coef,
+				num_grid_points = num_phase_grid_points,
+				num_cell_samples = num_phase_est_cell_samples,
+				num_gene_samples = num_phase_est_gene_samples,
+				vi_max_epochs = vi_max_epochs,
+				vi_print_epoch_loss = vi_print_epoch_loss,
+				vi_improvement_window = vi_improvement_window,
+				vi_convergence_criterion = vi_convergence_criterion,
+				vi_lr_scheduler_patience = vi_lr_scheduler_patience,
+				vi_lr_scheduler_factor = vi_lr_scheduler_factor,
+				vi_batch_size = vi_batch_size,
+				vi_num_workers = vi_num_workers,
+				vi_pin_memory = vi_pin_memory,
+				batch_indicator_mat = None,
+				detect_anomaly = detect_anomaly)
+		else:
+			opt_cycler_theta_posterior_likelihood = theta_posterior_likelihood_init
+			opt_cycler_gene_param_dict_unprepped = cycler_gene_param_dict
 
 
 
@@ -604,20 +606,6 @@ def run(adata,
 
 		print("--- FITTING HARMONIC PARAMETERS FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
 
-
-
-		# # ** prep **
-		# hv_gene_X, log_L, hv_gene_param_dict, cell_prior_dict, hv_gene_prior_dict = prep.unsupervised_prep(hv_adata,**config_dict)
-		# hv_gene_prior_dict['prior_Q_prob_alpha'] = 999.0 * torch.ones(hv_adata.shape[1]) # just for this, set the HV Q prob prior to non-informative
-		# hv_gene_prior_dict['prior_Q_prob_beta'] = torch.ones(hv_adata.shape[1])
-		# hv_gene_param_dict['Q_prob_log_alpha'] = torch.nn.Parameter(torch.log(999.0 * torch.ones(hv_adata.shape[1])).detach(),requires_grad=True) # fit Q params to values that yield Q =~ 1
-		# hv_gene_param_dict['Q_prob_log_beta'] = torch.nn.Parameter(torch.log(torch.ones(hv_adata.shape[1])).detach(),requires_grad=True)
-		# gene_param_grad_dict = {
-		# 	"mu_loc" : True, "mu_log_scale" : True,
-		# 	"phi_euclid_loc" : True, "phi_log_scale" : True,
-		# 	"A_log_alpha" : True, "A_log_beta" : True,
-		# 	"Q_prob_log_alpha" : False, "Q_prob_log_beta" : False,
-		# }
 
 
 		# ** run **

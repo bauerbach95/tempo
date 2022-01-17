@@ -345,6 +345,8 @@ def run(adata,
 
 
 		# write
+		if not os.path.exists('%s/cell_phase_estimation' % alg_step_subfolder):
+			os.makedirs('%s/cell_phase_estimation' % alg_step_subfolder)
 		cell_posterior_fileout = '%s/cell_phase_estimation/cell_posterior_init.tsv' % alg_step_subfolder # % (folder_out)
 		cell_posterior_df.to_csv(cell_posterior_fileout,sep='\t')
 		cell_prior_fileout = '%s/cell_phase_estimation/cell_prior_init.tsv' % alg_step_subfolder #  % (folder_out)

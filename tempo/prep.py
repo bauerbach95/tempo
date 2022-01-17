@@ -423,13 +423,11 @@ def get_cycler_prob_variational_and_prior_params(adata, init_clock_Q_prob_alpha,
 	prior_clock_Q_prob_alpha, prior_clock_Q_prob_beta, prior_non_clock_Q_prob_alpha, prior_non_clock_Q_prob_beta):
 
 
-	# ** get tensors **
-	if 'Q_prob_alpha' in adata.var and 'Q_prob_beta' in adata.var and 'prior_Q_prob_alpha' in adata.var and 'prior_Q_prob_beta' in adata.var:
-
+	# ** Q prob alpha and beta **
+	if 'Q_prob_alpha' in adata.var and 'Q_prob_beta' in adata.var:
 		Q_prob_alpha = torch.Tensor(np.array(adata.var['Q_prob_alpha']))
 		Q_prob_beta = torch.Tensor(np.array(adata.var['Q_prob_beta']))
-		prior_Q_prob_alpha = torch.Tensor(np.array(adata.var['prior_Q_prob_alpha']))
-		prior_Q_prob_beta = torch.Tensor(np.array(adata.var['prior_Q_prob_beta']))
+
 
 	else:
 
@@ -437,6 +435,20 @@ def get_cycler_prob_variational_and_prior_params(adata, init_clock_Q_prob_alpha,
 		Q_prob_alpha = torch.Tensor(np.array([init_non_clock_Q_prob_alpha] * adata.shape[1]))
 		Q_prob_beta = torch.Tensor(np.array([init_non_clock_Q_prob_beta] * adata.shape[1]))
 
+
+		# add update Q prob alpha and beta (and priors) for clock genes
+		if "is_clock" in adata.var:
+			clock_indices = np.where(adata.var['is_clock'])[0]
+			Q_prob_alpha[clock_indices] = init_clock_Q_prob_alpha
+			Q_prob_beta[clock_indices] = init_clock_Q_prob_beta
+
+
+
+	# ** prior: Q prob alpha and beta **
+	if 'prior_Q_prob_alpha' in adata.var and 'prior_Q_prob_beta' in adata.var:
+		prior_Q_prob_alpha = torch.Tensor(np.array(adata.var['prior_Q_prob_alpha']))
+		prior_Q_prob_beta = torch.Tensor(np.array(adata.var['prior_Q_prob_beta']))
+	else:
 
 		# get the prior_Q_prob_alpha and prior_Q_prob_beta tensors
 		prior_Q_prob_alpha = torch.Tensor(np.array([prior_non_clock_Q_prob_alpha] * adata.shape[1]))
@@ -446,10 +458,9 @@ def get_cycler_prob_variational_and_prior_params(adata, init_clock_Q_prob_alpha,
 		# add update Q prob alpha and beta (and priors) for clock genes
 		if "is_clock" in adata.var:
 			clock_indices = np.where(adata.var['is_clock'])[0]
-			Q_prob_alpha[clock_indices] = init_clock_Q_prob_alpha
-			Q_prob_beta[clock_indices] = init_clock_Q_prob_beta
 			prior_Q_prob_alpha[clock_indices] = prior_clock_Q_prob_alpha
 			prior_Q_prob_beta[clock_indices] = prior_clock_Q_prob_beta
+
 
 
 
