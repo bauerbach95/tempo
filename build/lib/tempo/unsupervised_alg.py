@@ -21,7 +21,7 @@ from . import cell_posterior
 from . import estimate_mean_disp_relationship
 from . import generate_null_dist
 from . import objective_functions
-
+from . import clock_gene_posterior
 
 
 
@@ -330,6 +330,32 @@ def run(adata,
 
 
 
+		# ** write out the params at algorithm init **
+		
+		# get cell posterior df at init
+		cycler_gene_posterior_obj_init = clock_gene_posterior.ClockGenePosterior(cycler_gene_param_dict,None,num_phase_grid_points,clock_indices,use_nb=use_nb,log_mean_log_disp_coef=log_mean_log_disp_coef,min_amp=min_amp,max_amp=max_amp)
+		theta_posterior_likelihood_init = cycler_gene_posterior_obj_init.compute_cell_phase_posterior_likelihood(cycler_gene_X,log_L,prior_theta_euclid_dist,num_gene_samples=100)
+
+
+
+		# ** write out the params / priors as a DataFrame **
+
+		# get df's
+		cell_posterior_df = params_to_df.cell_multinomial_params_to_param_df(np.array(cycler_adata.obs.index), theta_posterior_likelihood_init)
+		cell_prior_df = params_to_df.cell_powerspherical_params_dict_to_param_df(np.array(cycler_adata.obs.index), cell_prior_dict)
+		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(cycler_gene_param_dict), cycler_gene_prior_dict)
+
+
+		# write
+		cell_posterior_fileout = '%s/cell_phase_estimation/cell_posterior_init.tsv' % alg_step_subfolder # % (folder_out)
+		cell_posterior_df.to_csv(cell_posterior_fileout,sep='\t')
+		cell_prior_fileout = '%s/cell_phase_estimation/cell_prior_init.tsv' % alg_step_subfolder #  % (folder_out)
+		cell_prior_df.to_csv(cell_prior_fileout,sep='\t')
+		gene_param_df_fileout = '%s/cell_phase_estimation/gene_prior_and_posterior_init.tsv' % alg_step_subfolder #  (folder_out)
+		gene_param_df.to_csv(gene_param_df_fileout,sep='\t')
+
+
+		raise Exception("TOSSING IT HERE")
 
 
 		# ** run **
