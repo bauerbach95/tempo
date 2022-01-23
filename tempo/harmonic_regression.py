@@ -56,8 +56,8 @@ def run(adata,
 	mu_log_scale_lr = 1e-1,
 	A_log_alpha_lr = 1e-1,
 	A_log_beta_lr = 1e-1,
-	phi_euclid_loc_lr = 5.0,
-	phi_log_scale_lr = 1.0,
+	phi_euclid_loc_lr = 1e-1, # 5.0
+	phi_log_scale_lr = 1e-1, # 5.0
 	Q_prob_log_alpha_lr = 1e-1,
 	Q_prob_log_beta_lr = 1e-1,
 	num_gene_samples = 5,
@@ -158,7 +158,8 @@ def run(adata,
 
 	print("--- RESTRICTING GENES BASED ON MINIMUM PROPORTION IN PSEUDOBULK ---")
 
-	adata = adata[:,(adata.var['prop'] >= min_gene_prop)]
+	if min_gene_prop is not None:
+		adata = adata[:,(adata.var['prop'] >= min_gene_prop)]
 
 	print("Adata shape after thresholding minimum proportion")
 	print(str(adata.shape))
@@ -206,32 +207,35 @@ def run(adata,
 
 
 	# ** run **
-	_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
-		log_L = log_L, 
-		gene_param_dict = hv_gene_param_dict, 
-		gene_prior_dict = hv_gene_prior_dict,
-		folder_out = "%s/harmonic_preinference_burn_in" % (alg_result_head_folder),  # '%s/hv_preinference' % folder_out,
-		learning_rate_dict = vi_gene_param_lr_dict,
-		theta = torch.Tensor(adata.obs['theta']), # opt_clock_theta_posterior_likelihood
-		gene_param_grad_dict = gene_param_grad_dict,
-		max_iters = vi_max_epochs,
-		num_gene_samples = 1,
-		max_amp = max_amp,
-		min_amp = min_amp,
-		print_epoch_loss = vi_print_epoch_loss,
-		improvement_window = vi_improvement_window,
-		convergence_criterion = vi_convergence_criterion,
-		lr_scheduler_patience = vi_lr_scheduler_patience,
-		lr_scheduler_factor = vi_lr_scheduler_factor,
-		use_flat_model = False,
-		batch_size = vi_batch_size,
-		num_workers = vi_num_workers,
-		pin_memory = vi_pin_memory,
-		use_nb = use_nb,
-		log_mean_log_disp_coef = log_mean_log_disp_coef,
-		batch_indicator_mat = None,
-		detect_anomaly = detect_anomaly,
-		expectation_point_est_only = False)
+	if num_gene_samples > 1:
+		_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
+			log_L = log_L, 
+			gene_param_dict = hv_gene_param_dict, 
+			gene_prior_dict = hv_gene_prior_dict,
+			folder_out = "%s/harmonic_preinference_burn_in" % (alg_result_head_folder),  # '%s/hv_preinference' % folder_out,
+			learning_rate_dict = vi_gene_param_lr_dict,
+			theta = torch.Tensor(adata.obs['theta']), # opt_clock_theta_posterior_likelihood
+			gene_param_grad_dict = gene_param_grad_dict,
+			max_iters = vi_max_epochs,
+			num_gene_samples = 1,
+			max_amp = max_amp,
+			min_amp = min_amp,
+			print_epoch_loss = vi_print_epoch_loss,
+			improvement_window = vi_improvement_window,
+			convergence_criterion = vi_convergence_criterion,
+			lr_scheduler_patience = vi_lr_scheduler_patience,
+			lr_scheduler_factor = vi_lr_scheduler_factor,
+			use_flat_model = False,
+			batch_size = vi_batch_size,
+			num_workers = vi_num_workers,
+			pin_memory = vi_pin_memory,
+			use_nb = use_nb,
+			log_mean_log_disp_coef = log_mean_log_disp_coef,
+			batch_indicator_mat = None,
+			detect_anomaly = detect_anomaly,
+			expectation_point_est_only = False)
+	else:
+		opt_hv_gene_param_dict_unprepped = hv_gene_param_dict
 
 
 
@@ -243,23 +247,6 @@ def run(adata,
 	# --- FIT GENE PARAMETERS WHEN Q FIXED TO 1 ---
 
 	print("--- FITTING HARMONIC PARAMETERS ASSUMING Q = 1 ---")
-
-
-
-
-
-	# # ** prep **
-	# hv_gene_X, log_L, hv_gene_param_dict, hv_gene_prior_dict = prep.harmonic_regression_prep(hv_adata,**config_dict)
-	# hv_gene_prior_dict['prior_Q_prob_alpha'] = 999.0 * torch.ones(hv_adata.shape[1]) # just for this, set the HV Q prob prior to non-informative
-	# hv_gene_prior_dict['prior_Q_prob_beta'] = torch.ones(hv_adata.shape[1])
-	# hv_gene_param_dict['Q_prob_log_alpha'] = torch.nn.Parameter(torch.log(999.0 * torch.ones(hv_adata.shape[1])).detach(),requires_grad=True) # fit Q params to values that yield Q =~ 1
-	# hv_gene_param_dict['Q_prob_log_beta'] = torch.nn.Parameter(torch.log(torch.ones(hv_adata.shape[1])).detach(),requires_grad=True)
-	# gene_param_grad_dict = {
-	# 	"mu_loc" : True, "mu_log_scale" : True,
-	# 	"phi_euclid_loc" : True, "phi_log_scale" : True,
-	# 	"A_log_alpha" : True, "A_log_beta" : True,
-	# 	"Q_prob_log_alpha" : False, "Q_prob_log_beta" : False,
-	# }
 
 
 
@@ -312,33 +299,35 @@ def run(adata,
 
 
 	# ** run **
-	_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
-		log_L = log_L, 
-		gene_param_dict = opt_hv_gene_param_dict_unprepped, 
-		gene_prior_dict = hv_gene_prior_dict,
-		folder_out = "%s/harmonic_inference_burn_in" % (alg_result_head_folder), # '%s/hv_preinference_Q_fit' % folder_out,
-		learning_rate_dict = vi_gene_param_lr_dict,
-		theta = torch.Tensor(adata.obs['theta']), # opt_clock_theta_posterior_likelihood
-		gene_param_grad_dict = gene_param_grad_dict,
-		max_iters = vi_max_epochs, 
-		num_gene_samples = 1,
-		max_amp = max_amp,
-		min_amp = min_amp,
-		print_epoch_loss = vi_print_epoch_loss,
-		improvement_window = vi_improvement_window,
-		convergence_criterion = vi_convergence_criterion,
-		lr_scheduler_patience = vi_lr_scheduler_patience,
-		lr_scheduler_factor = vi_lr_scheduler_factor,
-		use_flat_model = False,
-		batch_size = vi_batch_size,
-		num_workers = vi_num_workers,
-		pin_memory = vi_pin_memory,
-		use_nb = use_nb,
-		log_mean_log_disp_coef = log_mean_log_disp_coef,
-		batch_indicator_mat = None,
-		detect_anomaly = detect_anomaly,
-		expectation_point_est_only = False) # True
-
+	if num_gene_samples > 1:
+		_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
+			log_L = log_L, 
+			gene_param_dict = opt_hv_gene_param_dict_unprepped, 
+			gene_prior_dict = hv_gene_prior_dict,
+			folder_out = "%s/harmonic_inference_burn_in" % (alg_result_head_folder), # '%s/hv_preinference_Q_fit' % folder_out,
+			learning_rate_dict = vi_gene_param_lr_dict,
+			theta = torch.Tensor(adata.obs['theta']), # opt_clock_theta_posterior_likelihood
+			gene_param_grad_dict = gene_param_grad_dict,
+			max_iters = vi_max_epochs, 
+			num_gene_samples = 1,
+			max_amp = max_amp,
+			min_amp = min_amp,
+			print_epoch_loss = vi_print_epoch_loss,
+			improvement_window = vi_improvement_window,
+			convergence_criterion = vi_convergence_criterion,
+			lr_scheduler_patience = vi_lr_scheduler_patience,
+			lr_scheduler_factor = vi_lr_scheduler_factor,
+			use_flat_model = False,
+			batch_size = vi_batch_size,
+			num_workers = vi_num_workers,
+			pin_memory = vi_pin_memory,
+			use_nb = use_nb,
+			log_mean_log_disp_coef = log_mean_log_disp_coef,
+			batch_indicator_mat = None,
+			detect_anomaly = detect_anomaly,
+			expectation_point_est_only = False) # True
+	else:
+		opt_hv_gene_param_dict_unprepped = opt_hv_gene_param_dict_unprepped
 
 
 
@@ -347,17 +336,6 @@ def run(adata,
 	# --- FIT Q ---
 
 	print("--- FITTING Q ---")
-
-
-
-	# # ** prep **
-	# hv_gene_X, log_L, _, hv_gene_prior_dict = prep.harmonic_regression_prep(hv_adata,**config_dict)
-	# gene_param_grad_dict = {
-	# 	"mu_loc" : False, "mu_log_scale" : False,
-	# 	"phi_euclid_loc" : False, "phi_log_scale" : False,
-	# 	"A_log_alpha" : False, "A_log_beta" : False,
-	# 	"Q_prob_log_alpha" : True, "Q_prob_log_beta" : True,
-	# }
 
 
 

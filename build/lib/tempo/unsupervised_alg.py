@@ -93,6 +93,9 @@ def run(adata,
 	**kwargs):
 
 
+	raise Exception("NEED TO SET VARIAITONAL TO PRIORS WHEN opt_phase_est_gene_params IS TRUE")
+
+
 
 	# --- MAKE FOLDER OUTS ---
 

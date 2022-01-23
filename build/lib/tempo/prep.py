@@ -630,7 +630,7 @@ def unsupervised_prep(adata,
 
 def harmonic_regression_prep(adata,
 	bulk_cycler_info_path,
-	reference_gene = 'Arntl',
+	reference_gene = None,
 	min_amp = 0.0,
 	max_amp = 1.5,
 	init_mesor_scale_val = 0.3,
