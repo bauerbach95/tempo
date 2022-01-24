@@ -628,7 +628,7 @@ def unsupervised_prep(adata,
 
 
 
-def get_gene_param_dict_matching_gene_prior_dict(gene_prior_dict):
+def get_zero_kl_gene_param_dict_from_gene_prior_dict(gene_prior_dict):
 	gene_param_dict = {}
 	gene_param_dict['mu_loc'] = torch.nn.Parameter(gene_prior_dict['prior_mu_loc'].detach(), requires_grad = True)
 	gene_param_dict['mu_log_scale'] = torch.nn.Parameter(torch.log(gene_prior_dict['prior_mu_scale']).detach(), requires_grad = True)
