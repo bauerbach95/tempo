@@ -93,7 +93,6 @@ def run(adata,
 	**kwargs):
 
 
-	raise Exception("NEED TO SET VARIAITONAL TO PRIORS WHEN opt_phase_est_gene_params IS TRUE")
 
 
 
@@ -300,7 +299,7 @@ def run(adata,
 			previous_de_novo_cycler_gene_param_df = previous_de_novo_cycler_gene_param_df.loc[previous_de_novo_cyclers]
 
 			# concat previous cycler and de novo cycler param df's
-			current_cycler_gene_param_df =  pd.concat((previous_cycler_gene_param_df, previous_de_novo_cycler_gene_param_df))
+			current_cycler_gene_param_df = pd.concat((previous_cycler_gene_param_df, previous_de_novo_cycler_gene_param_df))
 
 			# filter cols relevant for initializing variational parameters
 			cols_to_keep = list(filter(lambda x: "prior" not in x, current_cycler_gene_param_df.columns)) # drop prior columns
@@ -318,6 +317,8 @@ def run(adata,
 
 		# ** do the prep **
 		cycler_gene_X, log_L, cycler_gene_param_dict, cell_prior_dict, cycler_gene_prior_dict = prep.unsupervised_prep(cycler_adata,**config_dict)
+		if not opt_phase_est_gene_params: # set variational to priors if opt_phase_est_gene_params is False
+			cycler_gene_param_dict = prep.get_zero_kl_gene_param_dict_from_gene_prior_dict(cycler_gene_prior_dict)
 		if use_clock_output_only:
 			clock_indices = np.where(cycler_adata.var['is_clock'])[0]
 		else:
@@ -566,33 +567,36 @@ def run(adata,
 
 
 		# ** run **
-		_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
-			log_L = log_L, 
-			gene_param_dict = hv_gene_param_dict, 
-			gene_prior_dict = hv_gene_prior_dict,
-			folder_out = "%s/de_novo_cycler_id_preinference_burn_in" % (alg_step_subfolder),  # '%s/hv_preinference' % folder_out,
-			learning_rate_dict = vi_gene_param_lr_dict,
-			theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
-			gene_param_grad_dict = gene_param_grad_dict,
-			max_iters = vi_max_epochs, 
-			num_cell_samples = num_harmonic_est_cell_samples,
-			num_gene_samples = 1,
-			max_amp = max_amp,
-			min_amp = min_amp,
-			print_epoch_loss = vi_print_epoch_loss,
-			improvement_window = vi_improvement_window,
-			convergence_criterion = vi_convergence_criterion,
-			lr_scheduler_patience = vi_lr_scheduler_patience,
-			lr_scheduler_factor = vi_lr_scheduler_factor,
-			use_flat_model = False,
-			batch_size = vi_batch_size,
-			num_workers = vi_num_workers,
-			pin_memory = vi_pin_memory,
-			use_nb = use_nb,
-			log_mean_log_disp_coef = log_mean_log_disp_coef,
-			batch_indicator_mat = None,
-			detect_anomaly = detect_anomaly,
-			expectation_point_est_only = False)
+		if num_harmonic_est_cell_samples > 1:
+			_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
+				log_L = log_L, 
+				gene_param_dict = hv_gene_param_dict, 
+				gene_prior_dict = hv_gene_prior_dict,
+				folder_out = "%s/de_novo_cycler_id_preinference_burn_in" % (alg_step_subfolder),  # '%s/hv_preinference' % folder_out,
+				learning_rate_dict = vi_gene_param_lr_dict,
+				theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
+				gene_param_grad_dict = gene_param_grad_dict,
+				max_iters = vi_max_epochs, 
+				num_cell_samples = num_harmonic_est_cell_samples,
+				num_gene_samples = 1,
+				max_amp = max_amp,
+				min_amp = min_amp,
+				print_epoch_loss = vi_print_epoch_loss,
+				improvement_window = vi_improvement_window,
+				convergence_criterion = vi_convergence_criterion,
+				lr_scheduler_patience = vi_lr_scheduler_patience,
+				lr_scheduler_factor = vi_lr_scheduler_factor,
+				use_flat_model = False,
+				batch_size = vi_batch_size,
+				num_workers = vi_num_workers,
+				pin_memory = vi_pin_memory,
+				use_nb = use_nb,
+				log_mean_log_disp_coef = log_mean_log_disp_coef,
+				batch_indicator_mat = None,
+				detect_anomaly = detect_anomaly,
+				expectation_point_est_only = False)
+		else:
+			opt_hv_gene_param_dict_unprepped = hv_gene_param_dict
 
 
 
@@ -658,33 +662,36 @@ def run(adata,
 
 
 		# ** run **
-		_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
-			log_L = log_L, 
-			gene_param_dict = opt_hv_gene_param_dict_unprepped, 
-			gene_prior_dict = hv_gene_prior_dict,
-			folder_out = "%s/de_novo_cycler_id_burn_in" % (alg_step_subfolder), # '%s/hv_preinference_Q_fit' % folder_out,
-			learning_rate_dict = vi_gene_param_lr_dict,
-			theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
-			gene_param_grad_dict = gene_param_grad_dict,
-			max_iters = vi_max_epochs, 
-			num_cell_samples = num_harmonic_est_cell_samples,
-			num_gene_samples = 1,
-			max_amp = max_amp,
-			min_amp = min_amp,
-			print_epoch_loss = vi_print_epoch_loss,
-			improvement_window = vi_improvement_window,
-			convergence_criterion = vi_convergence_criterion,
-			lr_scheduler_patience = vi_lr_scheduler_patience,
-			lr_scheduler_factor = vi_lr_scheduler_factor,
-			use_flat_model = False,
-			batch_size = vi_batch_size,
-			num_workers = vi_num_workers,
-			pin_memory = vi_pin_memory,
-			use_nb = use_nb,
-			log_mean_log_disp_coef = log_mean_log_disp_coef,
-			batch_indicator_mat = None,
-			detect_anomaly = detect_anomaly,
-			expectation_point_est_only = False) # True
+		if num_harmonic_est_cell_samples > 1:
+			_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
+				log_L = log_L, 
+				gene_param_dict = opt_hv_gene_param_dict_unprepped, 
+				gene_prior_dict = hv_gene_prior_dict,
+				folder_out = "%s/de_novo_cycler_id_burn_in" % (alg_step_subfolder), # '%s/hv_preinference_Q_fit' % folder_out,
+				learning_rate_dict = vi_gene_param_lr_dict,
+				theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
+				gene_param_grad_dict = gene_param_grad_dict,
+				max_iters = vi_max_epochs, 
+				num_cell_samples = num_harmonic_est_cell_samples,
+				num_gene_samples = 1,
+				max_amp = max_amp,
+				min_amp = min_amp,
+				print_epoch_loss = vi_print_epoch_loss,
+				improvement_window = vi_improvement_window,
+				convergence_criterion = vi_convergence_criterion,
+				lr_scheduler_patience = vi_lr_scheduler_patience,
+				lr_scheduler_factor = vi_lr_scheduler_factor,
+				use_flat_model = False,
+				batch_size = vi_batch_size,
+				num_workers = vi_num_workers,
+				pin_memory = vi_pin_memory,
+				use_nb = use_nb,
+				log_mean_log_disp_coef = log_mean_log_disp_coef,
+				batch_indicator_mat = None,
+				detect_anomaly = detect_anomaly,
+				expectation_point_est_only = False) # True
+		else:
+			opt_hv_gene_param_dict_unprepped = opt_hv_gene_param_dict_unprepped
 
 
 
