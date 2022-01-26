@@ -53,6 +53,7 @@ def run(adata,
 	use_noninformative_phase_prior = True,
 	use_nb = True,
 	mean_disp_init_coef = [-4,-0.2], # ** mean / disp relationship learning parameters **
+	est_mean_disp_relationship = True,
 	mean_disp_log10_prop_bin_marks = list(np.linspace(-5,-1,20)), 
 	mean_disp_max_num_genes_per_bin = 50,
 	hv_std_residual_threshold = 0.5, # ** HVG selection parameters **
@@ -90,6 +91,7 @@ def run(adata,
 	evidence_improvement_threshold=0.001,
 	fraction_improvement_over_random_threshold=0.01,
 	opt_phase_est_gene_params = True,
+	init_variational_dist_to_prior = False,
 	**kwargs):
 
 
@@ -184,7 +186,10 @@ def run(adata,
 	# ** get the log mean - log disp polynomial coefficients **
 	if use_nb:
 		print("--- ESTIMATING GLOBAL MEAN-DISPERSION RELATIONSHIP FOR NEGATIVE BINOMIAL ---")
-		log_mean_log_disp_coef = estimate_mean_disp_relationship.estimate_mean_disp_relationship(adata, mean_disp_init_coef, mean_disp_log10_prop_bin_marks, mean_disp_max_num_genes_per_bin,min_log_disp=-10,max_log_disp=10)
+		if est_mean_disp_relationship:
+			log_mean_log_disp_coef = estimate_mean_disp_relationship.estimate_mean_disp_relationship(adata, mean_disp_init_coef, mean_disp_log10_prop_bin_marks, mean_disp_max_num_genes_per_bin,min_log_disp=-10,max_log_disp=10)
+		else:
+			log_mean_log_disp_coef = np.array(mean_disp_init_coef)
 	else:
 		log_mean_log_disp_coef = np.array([1e-1000]) # i.e. use Poisson (mean equals the variance; if log_disp = 1e-1000, np.exp(log_disp) ~ 0)
 	log_mean_log_disp_coef = torch.Tensor(log_mean_log_disp_coef)
@@ -317,7 +322,7 @@ def run(adata,
 
 		# ** do the prep **
 		cycler_gene_X, log_L, cycler_gene_param_dict, cell_prior_dict, cycler_gene_prior_dict = prep.unsupervised_prep(cycler_adata,**config_dict)
-		if not opt_phase_est_gene_params: # set variational to priors if opt_phase_est_gene_params is False
+		if not opt_phase_est_gene_params or init_variational_dist_to_prior: # set variational to priors if opt_phase_est_gene_params is False
 			cycler_gene_param_dict = prep.get_zero_kl_gene_param_dict_from_gene_prior_dict(cycler_gene_prior_dict)
 		if use_clock_output_only:
 			clock_indices = np.where(cycler_adata.var['is_clock'])[0]
@@ -359,6 +364,16 @@ def run(adata,
 		gene_param_df.to_csv(gene_param_df_fileout,sep='\t')
 
 
+		# print("TEMPORARILY FIXING PHI")
+		# gene_param_grad_dict = {
+		# 	"mu_loc" : True, "mu_log_scale" : True,
+		# 	"phi_euclid_loc" : False, "phi_log_scale" : False,
+		# 	"A_log_alpha" : True, "A_log_beta" : True,
+		# 	"Q_prob_log_alpha" : True, "Q_prob_log_beta" : True,
+		# }
+		gene_param_grad_dict = None
+
+
 
 		# ** estimate cell phase and optimize gene parameters **
 		if opt_phase_est_gene_params:
@@ -372,7 +387,7 @@ def run(adata,
 				prior_theta_euclid_dist = prior_theta_euclid_dist, # clock_posterior_dist
 				folder_out = '%s/cell_phase_estimation' % alg_step_subfolder, # '%s/clock_and_confident_hv_inference' % folder_out,
 				learning_rate_dict = vi_gene_param_lr_dict,
-				gene_param_grad_dict = None,
+				gene_param_grad_dict = gene_param_grad_dict, # None,
 				use_nb = use_nb,
 				log_mean_log_disp_coef = log_mean_log_disp_coef,
 				num_grid_points = num_phase_grid_points,
@@ -567,7 +582,7 @@ def run(adata,
 
 
 		# ** run **
-		if num_harmonic_est_cell_samples > 1:
+		if num_harmonic_est_gene_samples > 1:
 			_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
 				log_L = log_L, 
 				gene_param_dict = hv_gene_param_dict, 
@@ -662,7 +677,7 @@ def run(adata,
 
 
 		# ** run **
-		if num_harmonic_est_cell_samples > 1:
+		if num_harmonic_est_gene_samples > 1:
 			_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
 				log_L = log_L, 
 				gene_param_dict = opt_hv_gene_param_dict_unprepped, 

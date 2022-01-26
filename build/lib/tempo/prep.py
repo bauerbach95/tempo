@@ -628,14 +628,14 @@ def unsupervised_prep(adata,
 
 
 
-def get_gene_param_dict_matching_gene_prior_dict(gene_prior_dict):
+def get_zero_kl_gene_param_dict_from_gene_prior_dict(gene_prior_dict):
 	gene_param_dict = {}
 	gene_param_dict['mu_loc'] = torch.nn.Parameter(gene_prior_dict['prior_mu_loc'].detach(), requires_grad = True)
 	gene_param_dict['mu_log_scale'] = torch.nn.Parameter(torch.log(gene_prior_dict['prior_mu_scale']).detach(), requires_grad = True)
 	gene_param_dict['A_log_alpha'] = torch.nn.Parameter(torch.log(gene_prior_dict['prior_A_alpha']).detach(), requires_grad = True)
 	gene_param_dict['A_log_beta'] = torch.nn.Parameter(torch.log(gene_prior_dict['prior_A_beta']).detach(), requires_grad = True)
 	gene_param_dict['phi_euclid_loc'] = torch.nn.Parameter(gene_prior_dict['prior_phi_euclid_loc'].detach(), requires_grad = True)
-	gene_param_dict['phi_log_scale'] = torch.nn.Parameter(torch.log(utils.convert_vmf_to_ps_scale(gene_prior_dict['prior_phi_scale'])).detach(), requires_grad = True)
+	gene_param_dict['phi_log_scale'] = torch.nn.Parameter(torch.log(utils.convert_vmf_to_ps_scale(gene_prior_dict['prior_phi_scale'])).flatten().detach(), requires_grad = True)
 	gene_param_dict['Q_prob_log_alpha'] = torch.nn.Parameter(torch.log(gene_prior_dict['prior_Q_prob_alpha']).detach(), requires_grad = True)
 	gene_param_dict['Q_prob_log_beta'] = torch.nn.Parameter(torch.log(gene_prior_dict['prior_Q_prob_beta']).detach(), requires_grad = True)
 	return gene_param_dict

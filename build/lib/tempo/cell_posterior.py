@@ -102,7 +102,7 @@ class ThetaPosteriorDist():
 
 	# confidence: [0,1]
 	# true_cell_phase: [num_cells] in range [0,2 Pi]
-	def get_num_cells_in_interval_at_confidence(self, confidence, true_cell_phase, map_shifted_posterior_likelihood = None, map_shifted_indices = None):
+	def get_num_cells_in_interval_at_confidence(self, confidence, true_cell_phase, true_cell_phase_window_width = 0, map_shifted_posterior_likelihood = None, map_shifted_indices = None):
 
 
 		# ** get the map shifted posterior likelihood **
@@ -110,24 +110,65 @@ class ThetaPosteriorDist():
 			map_shifted_posterior_likelihood, map_shifted_indices = self.get_map_shifted_posterior_likelihood()
 
 
+
+
+
+
+		# # ** get the confidence interval for each cell: [num_cells x num_grid_points] **
+		# confidence_interval = self.compute_confidence_interval(confidence,map_shifted_posterior_likelihood,map_shifted_indices)
+
+
+		# # ** discretize the true cell phase **
+		# true_cell_phase_index = np.round((true_cell_phase / (2 * np.pi)) * self.num_grid_points)
+
+		# # ** shift the discretized true cell phase **
+		# shifted_true_cell_phase_index = (torch.Tensor(true_cell_phase_index) - self.map_indices) % (self.num_grid_points)
+		# shifted_true_cell_phase_index = shifted_true_cell_phase_index.int()
+
+
+		# # ** compute the number of cells that fell into interval **
+		# num_cells_in_interval = 0
+		# for cell_index in range(0,self.num_cells):    
+		# 	if confidence_interval[cell_index,shifted_true_cell_phase_index[cell_index]] == 1:
+		# 		num_cells_in_interval += 1
+				
+
+
+
+
 		# ** get the confidence interval for each cell: [num_cells x num_grid_points] **
 		confidence_interval = self.compute_confidence_interval(confidence,map_shifted_posterior_likelihood,map_shifted_indices)
 
+		# ** get the low and high parts of the true cell phase window **
+		true_cell_phases_window_low = (true_cell_phase - (true_cell_phase_window_width / 2.0)) % (2 * np.pi)
+		true_cell_phases_window_high = (true_cell_phase + (true_cell_phase_window_width / 2.0)) % (2 * np.pi)
 
-		# ** discretize the true cell phase **
+		# ** discretize the true cell phase window **
+		true_cell_phase_index_low = np.round((true_cell_phases_window_low / (2 * np.pi)) * self.num_grid_points)
+		true_cell_phase_index_high = np.round((true_cell_phases_window_high / (2 * np.pi)) * self.num_grid_points)
 		true_cell_phase_index = np.round((true_cell_phase / (2 * np.pi)) * self.num_grid_points)
 
-		# ** shift the discretized true cell phase **
+		# ** shift the discretized true cell phase window **
+		shifted_true_cell_phase_index_low = (torch.Tensor(true_cell_phase_index_low) - self.map_indices) % (self.num_grid_points)
+		shifted_true_cell_phase_index_low = shifted_true_cell_phase_index_low.int()
+		shifted_true_cell_phase_index_high = (torch.Tensor(true_cell_phase_index_high) - self.map_indices) % (self.num_grid_points)
+		shifted_true_cell_phase_index_high = shifted_true_cell_phase_index_high.int()
 		shifted_true_cell_phase_index = (torch.Tensor(true_cell_phase_index) - self.map_indices) % (self.num_grid_points)
 		shifted_true_cell_phase_index = shifted_true_cell_phase_index.int()
 
 
-		# ** compute the number of cells that fell into interval **
+		# ** compute the number of cells that fell into the interval **
 		num_cells_in_interval = 0
-		for cell_index in range(0,self.num_cells):    
-			if confidence_interval[cell_index,shifted_true_cell_phase_index[cell_index]] == 1:
+		for cell_index in range(0,self.num_cells):
+			bool_1 = confidence_interval[cell_index,shifted_true_cell_phase_index[cell_index]] == 1
+			bool_2 = confidence_interval[cell_index,shifted_true_cell_phase_index_low[cell_index]] == 1
+			bool_3 = confidence_interval[cell_index,shifted_true_cell_phase_index_high[cell_index]] == 1
+			if bool_1 or bool_2 or bool_3:
 				num_cells_in_interval += 1
-				
+
+
+
+
 		return num_cells_in_interval   
 
 
