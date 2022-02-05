@@ -397,7 +397,7 @@ def run(adata,
 
 
 	# ** get HV gene param df **
-	hv_gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(hv_adata.var_names), utils.prep_gene_params(opt_hv_gene_param_dict_unprepped), hv_gene_prior_dict)
+	hv_gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(hv_adata.var_names), utils.prep_gene_params(opt_hv_gene_param_dict_unprepped), hv_gene_prior_dict, min_amp, max_amp)
 
 
 	# ** add A_loc_pearson_residuals and frac_pos_cycler_samples to HV adata and gene parameter DF **

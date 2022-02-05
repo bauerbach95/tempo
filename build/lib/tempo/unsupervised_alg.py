@@ -350,7 +350,7 @@ def run(adata,
 		# get df's
 		cell_posterior_df = params_to_df.cell_multinomial_params_to_param_df(np.array(cycler_adata.obs.index), theta_posterior_likelihood_init)
 		cell_prior_df = params_to_df.cell_powerspherical_params_dict_to_param_df(np.array(cycler_adata.obs.index), cell_prior_dict)
-		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(cycler_gene_param_dict), cycler_gene_prior_dict)
+		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(cycler_gene_param_dict), cycler_gene_prior_dict, min_amp, max_amp)
 
 
 		# write
@@ -415,7 +415,7 @@ def run(adata,
 		# get df's
 		cell_posterior_df = params_to_df.cell_multinomial_params_to_param_df(np.array(cycler_adata.obs.index), opt_cycler_theta_posterior_likelihood)
 		cell_prior_df = params_to_df.cell_powerspherical_params_dict_to_param_df(np.array(cycler_adata.obs.index), cell_prior_dict)
-		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(opt_cycler_gene_param_dict_unprepped), cycler_gene_prior_dict)
+		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(opt_cycler_gene_param_dict_unprepped), cycler_gene_prior_dict, min_amp, max_amp)
 
 
 
@@ -787,7 +787,7 @@ def run(adata,
 
 
 		# ** get HV gene param df **
-		hv_gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(hv_adata.var_names), utils.prep_gene_params(opt_hv_gene_param_dict_unprepped), hv_gene_prior_dict)
+		hv_gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(hv_adata.var_names), utils.prep_gene_params(opt_hv_gene_param_dict_unprepped), hv_gene_prior_dict, min_amp, max_amp)
 
 
 		# ** add A_loc_pearson_residuals and frac_pos_cycler_samples to HV adata and gene parameter DF **

@@ -1,5 +1,7 @@
 import pandas as pd
 import power_spherical
+import torch
+import numpy as np
 
 # tempo imports
 from . import cell_posterior
@@ -15,13 +17,14 @@ from . import cell_posterior
 #		- flat_model (bool): if false, does not include sinusoidal parameters in the dataframe
 # - Outputs:
 #		- gene_param_df (pandas dataframe): datafarme storing parameter values
-def gene_param_dicts_to_param_df(gene_names, gene_param_dict, gene_prior_dict):
+def gene_param_dicts_to_param_df(gene_names, gene_param_dict, gene_prior_dict, min_amp, max_amp):
 
 
 	# fill gene param df
 	gene_param_df = pd.DataFrame()
 	gene_param_df['gene'] = gene_names
 	gene_param_df = gene_param_df.set_index("gene")
+
 
 
 	# variational params
@@ -34,9 +37,19 @@ def gene_param_dicts_to_param_df(gene_names, gene_param_dict, gene_prior_dict):
 			gene_param_df['phi_euclid_cos'] = gene_param_dict['phi_euclid_loc'][:,0].detach().numpy()
 			gene_param_df['phi_euclid_sin'] = gene_param_dict['phi_euclid_loc'][:,1].detach().numpy()
 			gene_param_df['phi_scale'] = gene_param_dict['phi_scale'].detach().numpy()
+			A_loc = gene_param_dict['A_alpha'] / (gene_param_dict['A_alpha'] + gene_param_dict['A_beta'])
+			A_loc = (A_loc * (max_amp - min_amp)) + min_amp
+			A_loc = A_loc.detach().numpy()
+			phi_loc = torch.atan2(gene_param_dict['phi_euclid_loc'][:,1],gene_param_dict['phi_euclid_loc'][:,0]).detach().numpy()
+			gene_param_df['A_loc'] = A_loc
+			gene_param_df['phi_loc'] = phi_loc % (2 * np.pi)
 			if 'Q_prob_alpha' in gene_param_dict and 'Q_prob_beta' in gene_param_dict:
 				gene_param_df['Q_prob_alpha'] = gene_param_dict['Q_prob_alpha'].detach().numpy()
 				gene_param_df['Q_prob_beta'] = gene_param_dict['Q_prob_beta'].detach().numpy()
+				Q_prob_loc = gene_param_dict['Q_prob_alpha'] / (gene_param_dict['Q_prob_alpha'] + gene_param_dict['Q_prob_beta'])
+				Q_prob_loc = Q_prob_loc.detach().numpy()
+				gene_param_df['Q_prob_loc'] = Q_prob_loc
+
 
 	# prior params
 	if gene_prior_dict is not None:

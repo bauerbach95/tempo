@@ -88,8 +88,6 @@ def run(adata,
 	A_loc_pearson_residual_threshold = 0.5,
 	confident_cell_interval_size_threshold = 12.0,
 	max_num_alg_steps=3,
-	evidence_improvement_threshold=0.001,
-	fraction_improvement_over_random_threshold=0.01,
 	opt_phase_est_gene_params = True,
 	init_variational_dist_to_prior = False,
 	**kwargs):
@@ -111,10 +109,10 @@ def run(adata,
 		os.makedirs(mean_disp_param_folder_out)
 
 
-	# # ** null_fits_folder_out **
-	null_fits_folder_out = '%s/null_dist' % folder_out
-	if not os.path.exists(null_fits_folder_out):
-		os.makedirs(null_fits_folder_out)
+	# # ** evidence folder **
+	evidence_folder_out = '%s/evidence' % folder_out
+	if not os.path.exists(evidence_folder_out):
+		os.makedirs(evidence_folder_out)
 
 
 
@@ -228,18 +226,15 @@ def run(adata,
 
 	# --- ORDER ADATA S.T. CORE CLOCK GENES FIRST AND THEN HV GENES SECOND ---
 	adata = adata[:,list(core_clock_genes) + list(hv_genes)]
-
-
-
 	print("Num HV genes: %s" % str(len(hv_genes)))
 	print("Adata shape before starting algorithm: %s" % str(adata.shape))
 
 
 
 
-	# --- GENERATE THE NULL DISTRIBUTION ---
+	# --- GENERATE THE NULL DISTRIBUTION OF CORE CLOCK EVIDENCE ---
 
-	print("--- GENERATING NULL DISTRIBUTION OF DATA EVIDENCE UNDER RANDOM ORDERINGS ---")
+	print("--- GENERATING NULL DISTRIBUTION OF CORE CLOCK EVIDENCE UNDER RANDOM CELL PHASE ASSIGNMENTS ---")
 
 	# ** get the clock adata **
 	clock_adata = adata[:,adata.var['is_clock']]
@@ -248,7 +243,7 @@ def run(adata,
 	clock_X, _, _, _, _ = prep.unsupervised_prep(clock_adata,**config_dict)
 
 	# ** run **
-	null_ll_vec = generate_null_dist.generate(adata = clock_adata, null_head_folder_out=null_fits_folder_out,learning_rate_dict=vi_gene_param_lr_dict,
+	null_log_evidence_vec = generate_null_dist.generate(adata = clock_adata, null_head_folder_out=evidence_folder_out,learning_rate_dict=vi_gene_param_lr_dict,
 		log_mean_log_disp_coef=log_mean_log_disp_coef,min_amp=min_amp,max_amp=max_amp,num_gene_samples=num_harmonic_est_gene_samples,use_nb=use_nb,num_shuffles=num_null_shuffles,config_dict=copy.deepcopy(config_dict))
 
 
@@ -260,7 +255,7 @@ def run(adata,
 	# --- START ALGORTHM ---
 
 	algorithm_step = 0
-	prev_evidence = None
+	prev_clock_log_evidence = None
 	alg_result_head_folder = "%s/tempo_results" % folder_out
 	if not os.path.exists(alg_result_head_folder):
 		os.makedirs(alg_result_head_folder)
@@ -350,7 +345,7 @@ def run(adata,
 		# get df's
 		cell_posterior_df = params_to_df.cell_multinomial_params_to_param_df(np.array(cycler_adata.obs.index), theta_posterior_likelihood_init)
 		cell_prior_df = params_to_df.cell_powerspherical_params_dict_to_param_df(np.array(cycler_adata.obs.index), cell_prior_dict)
-		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(cycler_gene_param_dict), cycler_gene_prior_dict)
+		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(cycler_gene_param_dict), cycler_gene_prior_dict, min_amp, max_amp)
 
 
 		# write
@@ -415,7 +410,7 @@ def run(adata,
 		# get df's
 		cell_posterior_df = params_to_df.cell_multinomial_params_to_param_df(np.array(cycler_adata.obs.index), opt_cycler_theta_posterior_likelihood)
 		cell_prior_df = params_to_df.cell_powerspherical_params_dict_to_param_df(np.array(cycler_adata.obs.index), cell_prior_dict)
-		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(opt_cycler_gene_param_dict_unprepped), cycler_gene_prior_dict)
+		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(opt_cycler_gene_param_dict_unprepped), cycler_gene_prior_dict, min_amp, max_amp)
 
 
 
@@ -431,74 +426,48 @@ def run(adata,
 
 
 
-		# --- GET THE EVIDENCE FOR THE CELL PHASES ---
+		# --- COMPUTE CORE CLOCK EVIDENCE ---
 
-		print("--- ESTIMATING EVIDENCE FOR THE CELL PHASE POSTERIOR ---")
+		print("--- ESTIMATING CLOCK EVIDENCE FOR THE CELL PHASE POSTERIOR ---")
+
+		# ** compute **
+		gene_param_loc_scale_dict = utils.get_distribution_loc_and_scale(gene_param_dict = opt_cycler_gene_param_dict_unprepped, min_amp = min_amp, max_amp = max_amp, prep = True) # ** get the loc scale dict **
+		distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = opt_cycler_gene_param_dict_unprepped, max_amp = max_amp, min_amp = min_amp, prep = True) # ** get the distrib dict **
+		theta_sampled = cell_posterior.ThetaPosteriorDist(opt_cycler_theta_posterior_likelihood).sample(num_samples=num_phase_est_cell_samples) # ** get theta sampled **
+		clock_cell_gene_ll_sampled = objective_functions.compute_sample_log_likelihood(clock_X, log_L,
+		    theta_sampled = theta_sampled,
+		    mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
+		    num_cell_samples = num_phase_est_cell_samples, num_gene_samples = num_phase_est_gene_samples, use_flat_model = False,
+		    use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = False, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
+		clock_log_evidence_sampled = torch.sum(torch.sum(clock_cell_gene_ll_sampled,dim=0),dim=0).flatten() # ** get the mc log evidence **
+		clock_log_evidence = torch.mean(clock_log_evidence_sampled).item()
 
 
-		# ** get the loc scale dict **
-		gene_param_loc_scale_dict = utils.get_distribution_loc_and_scale(gene_param_dict = opt_cycler_gene_param_dict_unprepped, min_amp = min_amp, max_amp = max_amp, prep = True)
-
-		# ** get the distrib dict **
-		distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = opt_cycler_gene_param_dict_unprepped, max_amp = max_amp, min_amp = min_amp, prep = True)
-
-		# ** get theta sampled **
-		theta_sampled = cell_posterior.ThetaPosteriorDist(opt_cycler_theta_posterior_likelihood).sample(num_samples=num_phase_est_cell_samples)
-
-
-		# ** compute expectation of the LL for each cell **
-		# cycler_cell_evidence = objective_functions.compute_expectation_log_likelihood(clock_X if use_clock_output_only else cycler_gene_X, log_L,
-		# 	theta_sampled = theta_sampled, mu_loc = gene_param_loc_scale_dict['mu_loc'][clock_indices], A_loc = gene_param_loc_scale_dict['A_loc'][clock_indices],
-		# 	phi_euclid_loc = gene_param_loc_scale_dict['phi_euclid_loc'][clock_indices], Q_prob_loc = gene_param_loc_scale_dict['Q_prob_loc'][clock_indices],
-		# 	use_is_cycler_indicators = gene_param_loc_scale_dict['Q_prob_loc'] is not None, exp_over_cells = True, use_flat_model = False,
-		# 	use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = False)
-		cycler_cell_evidence = objective_functions.compute_expectation_log_likelihood(clock_X if use_clock_output_only else cycler_gene_X, log_L,
-			theta_sampled = theta_sampled,
-			mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
-			num_gene_samples = num_phase_est_gene_samples, exp_over_cells = True, use_flat_model = False,
-			use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = False, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
+		# ** compare the clock evidence to random **
+		log10_bf_tempo_vs_null = (clock_log_evidence - np.max(null_log_evidence_vec)) / np.log(10)
 
 
 
-
-
-
-
-		# ** compute expectation over cells **
-		cycler_evidence = torch.mean(cycler_cell_evidence).item()
-
-
-		# ** compute the percentile **
-		percentile_in_null = scipy.stats.percentileofscore(null_ll_vec,cycler_evidence)
-		null_median = np.median(null_ll_vec)
-		fraction_improvement_over_random = (cycler_evidence - null_median) / np.abs(null_median)
-
-
-
-		# ** write **
-		fileout = '%s/step_%s_cycler_percentile_in_null.txt' % (null_fits_folder_out, algorithm_step)
+		# ** write out evidence **
+		fileout = '%s/step_%s_clock_evidence.txt' % (evidence_folder_out, algorithm_step)
 		with open(fileout,"wb") as file_obj:
-			file_obj.write(str(percentile_in_null).encode())
-		fileout = '%s/step_%s_cycler_evidence.txt' % (null_fits_folder_out, algorithm_step)
-		with open(fileout,"wb") as file_obj:
-			file_obj.write(str(cycler_evidence).encode())
-		fileout = '%s/step_%s_cycler_evidence_fraction_improvement_over_random.txt' % (null_fits_folder_out, algorithm_step)
-		with open(fileout,"wb") as file_obj:
-			file_obj.write(str(fraction_improvement_over_random).encode())
+			file_obj.write(str(clock_log_evidence).encode())
+
 
 
 		# ** halt algorithm progression if not sufficiently better than random **
+		print("Tempo vs. null clock evidence log10 bayes factor: %s" % log10_bf_tempo_vs_null)
+		if log10_bf_tempo_vs_null < log10_bf_tempo_vs_null_threshold:
+			print("Clock evidence not sufficiently better than random. Halting algorithm.")
+			break
+
 		
-		if use_clock_output_only:
-			print("Cycler evidence percentile in null distribution: %s; Fraction improvement over random: %s" % (percentile_in_null,fraction_improvement_over_random))
-			# if percentile_in_null < null_percentile_threshold:
-			# 	print("Cycler evidence not sufficiently better than random. Halting algorithm.")
-			# 	break
-			if fraction_improvement_over_random < fraction_improvement_over_random_threshold:
-				print("Cycler evidence not sufficiently better than random. Halting algorithm.")
-				break
-
-
+		# ** halt algorithm progression if clock evidence worsens **
+		if algorithm_step == 0:
+			prev_clock_log_evidence = clock_log_evidence
+		elif clock_log_evidence - prev_clock_log_evidence < 0:
+			print("Clock log evidence decreased from previous Tempo step. Halting algorithm.")
+			break
 
 
 
@@ -787,7 +756,7 @@ def run(adata,
 
 
 		# ** get HV gene param df **
-		hv_gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(hv_adata.var_names), utils.prep_gene_params(opt_hv_gene_param_dict_unprepped), hv_gene_prior_dict)
+		hv_gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(hv_adata.var_names), utils.prep_gene_params(opt_hv_gene_param_dict_unprepped), hv_gene_prior_dict, min_amp, max_amp)
 
 
 		# ** add A_loc_pearson_residuals and frac_pos_cycler_samples to HV adata and gene parameter DF **
@@ -813,8 +782,6 @@ def run(adata,
 
 
 		# --- IF SPECIFIED JUST TO USE THE CORE CLOCK ONLY, STOP HERE ---
-
-
 		if use_clock_input_only:
 			print("--- SUCCESSFULLY FINISHED ---")
 			return
@@ -823,20 +790,7 @@ def run(adata,
 
 
 
-
-		# --- CHECK FOR CONVERGENCE ----
-
-
-		# break if evidence for core clock expression has converged
-		if use_clock_output_only:
-			if prev_evidence is None:
-				prev_evidence = cycler_evidence
-			else:
-				evidence_improvement = ((cycler_evidence - prev_evidence) / np.abs(prev_evidence))
-				print("Evidence improvement at algorithm step %s: %s" % (algorithm_step, evidence_improvement))
-				if (evidence_improvement <= evidence_improvement_threshold):
-					break
-
+		# --- INCREMENT ALGORITHM STEP / HALT ----
 
 
 		# otherwise, keep going

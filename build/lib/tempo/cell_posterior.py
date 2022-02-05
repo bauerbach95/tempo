@@ -110,32 +110,6 @@ class ThetaPosteriorDist():
 			map_shifted_posterior_likelihood, map_shifted_indices = self.get_map_shifted_posterior_likelihood()
 
 
-
-
-
-
-		# # ** get the confidence interval for each cell: [num_cells x num_grid_points] **
-		# confidence_interval = self.compute_confidence_interval(confidence,map_shifted_posterior_likelihood,map_shifted_indices)
-
-
-		# # ** discretize the true cell phase **
-		# true_cell_phase_index = np.round((true_cell_phase / (2 * np.pi)) * self.num_grid_points)
-
-		# # ** shift the discretized true cell phase **
-		# shifted_true_cell_phase_index = (torch.Tensor(true_cell_phase_index) - self.map_indices) % (self.num_grid_points)
-		# shifted_true_cell_phase_index = shifted_true_cell_phase_index.int()
-
-
-		# # ** compute the number of cells that fell into interval **
-		# num_cells_in_interval = 0
-		# for cell_index in range(0,self.num_cells):    
-		# 	if confidence_interval[cell_index,shifted_true_cell_phase_index[cell_index]] == 1:
-		# 		num_cells_in_interval += 1
-				
-
-
-
-
 		# ** get the confidence interval for each cell: [num_cells x num_grid_points] **
 		confidence_interval = self.compute_confidence_interval(confidence,map_shifted_posterior_likelihood,map_shifted_indices)
 
