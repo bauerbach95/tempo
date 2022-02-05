@@ -29,9 +29,8 @@ from . import compute_clock_evidence
 import tqdm
 
 
-def run(cycler_adata, folder_out,
+def run(cycler_adata, folder_out, num_null_shuffles,
 	log_mean_log_disp_coef = None,
-	num_null_shuffles = 5,
 	bulk_cycler_info_path=None,
 	core_clock_gene_path=None,
 	gene_param_grad_dict = None,
@@ -112,6 +111,9 @@ def run(cycler_adata, folder_out,
 
 	# -- GENERATE NULL DIST ---
 	for shuffle_index in tqdm.tqdm(range(0,num_null_shuffles)):
+
+		# print("Null estimate %s of %s" % (shuffle_index, num_null_shuffles))
+
 
 		# ** randomly shuffle the expression of individual genes across cells **
 		try:

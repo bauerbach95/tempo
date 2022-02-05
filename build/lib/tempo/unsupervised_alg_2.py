@@ -27,6 +27,7 @@ from . import identify_de_novo_cyclers
 from . import compute_clock_evidence
 
 
+
 # bulk_cycler_info_path = '/users/benauerbach/dropbox/tempo_paper/figures/sim_data_figure_N_500_mean_lib_size_20000/experiment_0/clock_acrophase_prior.csv'
 # core_clock_gene_path = '/users/benauerbach/dropbox/tempo_paper/figures/sim_data_figure_N_500_mean_lib_size_20000/experiment_0/core_clock_genes.txt'
 
@@ -59,7 +60,7 @@ def run(adata,
 	prior_clock_Q_prob_alpha = 90,
 	prior_clock_Q_prob_beta = 10,
 	prior_non_clock_Q_prob_alpha = 1, 
-	prior_non_clock_Q_prob_beta = 1,
+	prior_non_clock_Q_prob_beta = 9,
 	use_noninformative_phase_prior = True,
 	use_nb = True,
 	mean_disp_init_coef = [-4,-0.2], # ** mean / disp relationship learning parameters **
@@ -94,8 +95,8 @@ def run(adata,
 	num_null_shuffles = 5,
 	use_clock_input_only = False,
 	use_clock_output_only = True,
-	frac_pos_cycler_samples_threshold = 0.8,
-	A_loc_pearson_residual_threshold = 1.0,
+	frac_pos_cycler_samples_threshold = 0.1,
+	A_loc_pearson_residual_threshold = 0.5,
 	confident_cell_interval_size_threshold = 12.0,
 	max_num_alg_steps=3,
 	opt_phase_est_gene_params = True,
@@ -255,14 +256,19 @@ def run(adata,
 	clock_X, _, _, _, _ = prep.unsupervised_prep(clock_adata,**config_dict)
 
 	# ** run **
-	null_log_evidence_vec = generate_null_dist.run(clock_adata, evidence_folder_out, log_mean_log_disp_coef, **copy.deepcopy(config_dict))
+	null_log_evidence_vec = generate_null_dist.generate(adata = clock_adata, null_head_folder_out=evidence_folder_out,learning_rate_dict=vi_gene_param_lr_dict,
+		log_mean_log_disp_coef=log_mean_log_disp_coef,min_amp=min_amp,max_amp=max_amp,num_gene_samples=num_harmonic_est_gene_samples,use_nb=use_nb,num_shuffles=num_null_shuffles,config_dict=copy.deepcopy(config_dict))
 
 
 
-	
 
-
-
+	# # --- SET GLOBAL VARIABLES BEFORE STARTING THE ALGORITHM ---
+	# for val in config_dict:
+	# 	globals()[val] = config_dict[val]
+	# globals()['log_mean_log_disp_coef'] = log_mean_log_disp_coef
+	# globals()['vi_gene_param_lr_dict'] = vi_gene_param_lr_dict
+	# globals()['evidence_folder_out'] = evidence_folder_out
+	# globals()['core_clock_genes'] = core_clock_genes
 
 
 
@@ -287,9 +293,6 @@ def run(adata,
 
 
 		# --- ESTIMATE THE CELL PHASE GIVEN CURRENT KNOWN CYCLING GENES ---
-
-		print("--- ESTIMATING CELL PHASE POSTERIOR USING CURRENT CYCLERS ---")
-
 
 
 		# ** get cycler adata **

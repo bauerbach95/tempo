@@ -512,6 +512,68 @@ def get_optimal_predicted_phase_when_reference_gene_unknown(true_phase, predicte
 
 
 
+def init_cycler_adata_variational_and_prior_dist_from_prev_round(cycler_adata, previous_alg_step_subfolder, enforce_de_novo_cycler_flat_Q_prior = False):
+
+
+	# load gene param df for previous round's cycler genes
+	previous_cycler_gene_param_df_fileout = '%s/cell_phase_estimation/gene_prior_and_posterior.tsv' % previous_alg_step_subfolder
+	previous_cycler_gene_param_df = pd.read_table(previous_cycler_gene_param_df_fileout,sep='\t',index_col='gene')
+
+	# load the gene param df for the previous round's de novo cyclers
+	previous_de_novo_cycler_gene_param_df_fileout = '%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % previous_alg_step_subfolder
+	previous_de_novo_cycler_gene_param_df = pd.read_table(previous_de_novo_cycler_gene_param_df_fileout,sep='\t',index_col='gene')
+	previous_de_novo_cyclers = np.intersect1d(np.array(cycler_adata.var_names), np.array(previous_de_novo_cycler_gene_param_df.index))
+	previous_de_novo_cycler_gene_param_df = previous_de_novo_cycler_gene_param_df.loc[previous_de_novo_cyclers]
+
+	# concat previous cycler and de novo cycler param df's
+	current_cycler_gene_param_df = pd.concat((previous_cycler_gene_param_df, previous_de_novo_cycler_gene_param_df))
+
+	# make sure current_cycler_gene_param_df is in the same order as cycler_adata
+	current_cycler_gene_param_df = current_cycler_gene_param_df.loc[np.array(cycler_adata.var_names)] 
+
+	# add parameters to adata to initialize distribution parameters
+	cols_to_keep = list(current_cycler_gene_param_df.columns) # drop prior columns
+	for col in cols_to_keep:
+		cycler_adata.var[col] = np.array(current_cycler_gene_param_df[col])
+
+
+	if enforce_de_novo_cycler_flat_Q_prior:
+		non_clock_indices = np.where(~cycler_adata.var['is_clock'])[0]
+		cycler_gene_prior_dict['prior_Q_prob_alpha'][non_clock_indices] = torch.ones((non_clock_indices.shape[0])) # set the non-clock cycler Q priors to flat
+		cycler_gene_prior_dict['prior_Q_prob_beta'][non_clock_indices] = torch.ones((non_clock_indices.shape[0]))
+
+	return cycler_adata
+
+
+
+
+def init_hv_adata_variational_and_prior_dist_from_prev_round(hv_adata, previous_alg_step_subfolder):
+
+
+
+	# load the gene param df for the previous round's de novo cyclers
+	previous_de_novo_cycler_gene_param_df_fileout = '%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % previous_alg_step_subfolder
+	previous_de_novo_cycler_gene_param_df = pd.read_table(previous_de_novo_cycler_gene_param_df_fileout,sep='\t',index_col='gene')
+	
+	# get the current_non_cycler_gene_param_df
+	current_non_cycler_gene_param_df = previous_de_novo_cycler_gene_param_df.loc[np.array(hv_adata.var_names)]
+
+	# # filter cols relevant for initializing variational parameters
+	# cols_to_keep = list(filter(lambda x: "prior" not in x, current_non_cycler_gene_param_df.columns)) # drop prior columns
+	# current_non_cycler_gene_param_df = current_non_cycler_gene_param_df[cols_to_keep]
+
+
+	# add parameters to adata to initialize cycler genes 
+	cols_to_keep = list(current_non_cycler_gene_param_df.columns)
+	for col in cols_to_keep:
+		hv_adata.var[col] = np.array(current_non_cycler_gene_param_df[col])
+
+	return hv_adata
+
+
+
+
+
 
 
 

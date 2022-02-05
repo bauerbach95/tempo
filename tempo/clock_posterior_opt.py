@@ -44,7 +44,8 @@ def run(gene_X,
 	vi_num_workers = 0,
 	vi_pin_memory = False,
 	batch_indicator_mat = None,
-	detect_anomaly = False):
+	detect_anomaly = False,
+	use_clock_output_only = False):
 	
 
 
@@ -105,7 +106,8 @@ def run(gene_X,
 		use_nb=use_nb,
 		log_mean_log_disp_coef=log_mean_log_disp_coef,
 		min_amp=min_amp,
-		max_amp=max_amp)
+		max_amp=max_amp,
+		use_clock_output_only = use_clock_output_only)
 		
 
 
@@ -241,7 +243,8 @@ def run(gene_X,
 		use_nb=use_nb,
 		log_mean_log_disp_coef=log_mean_log_disp_coef,
 		min_amp=min_amp,
-		max_amp=max_amp)
+		max_amp=max_amp,
+		use_clock_output_only=use_clock_output_only)
 		
 	optimal_theta_posterior_likelihood = optimal_clock_gene_posterior_obj.compute_cell_phase_posterior_likelihood(gene_X,log_L,prior_theta_euclid_dist,num_gene_samples=num_gene_samples)
 
