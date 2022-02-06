@@ -115,14 +115,13 @@ def run(gene_X,
 	scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = vi_lr_scheduler_factor, patience = vi_lr_scheduler_patience)
 		
 
-		
+
 	# ** run **
 	losses, kl_losses, ll_losses = [], [], []
 	loss_percent_differences = []
 	for epoch in range(0,vi_max_epochs):
 
-		
-		
+
 		# init total loss, kl_loss, and ll_loss
 		total_loss, kl_loss, ll_loss = 0, 0, 0
 		num_batches = 0
@@ -130,7 +129,9 @@ def run(gene_X,
 
 
 			# zero gradient
-			optimizer.zero_grad()
+			# optimizer.zero_grad()
+			for key, param in gene_param_dict.items():
+				gene_param_dict[key].grad = None
 
 
 			# get the batch_prior_theta_euclid_dist
@@ -203,6 +204,8 @@ def run(gene_X,
 		if (epoch >= 2 * vi_improvement_window) and (loss_percent_improvement <= vi_convergence_criterion):
 			print("Loss converged and stopping")
 			break
+
+
 
 
 	# ** write the loss list out **

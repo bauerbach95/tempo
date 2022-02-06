@@ -145,7 +145,10 @@ class ClockGenePosterior(torch.nn.Module):
 
 		# --- COMPUTE ELBO ---
 		kl_loss = torch.mean(clock_and_de_novo_cycler_kl)
-		ll_loss = torch.mean(cycler_gene_expectation_log_likelihood)
+		if self.use_clock_output_only:
+			ll_loss = torch.mean(clock_gene_expectation_log_likelihood)
+		else:
+			ll_loss = torch.mean(cycler_gene_expectation_log_likelihood)
 		elbo_loss = kl_loss - ll_loss
 
 

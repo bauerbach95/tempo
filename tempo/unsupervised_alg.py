@@ -25,6 +25,7 @@ from . import clock_gene_posterior
 from . import est_cell_phase_from_current_cyclers
 from . import identify_de_novo_cyclers
 from . import compute_clock_evidence
+import gc
 
 
 # bulk_cycler_info_path = '/users/benauerbach/dropbox/tempo_paper/figures/sim_data_figure_N_500_mean_lib_size_20000/experiment_0/clock_acrophase_prior.csv'
@@ -251,14 +252,14 @@ def run(adata,
 	# ** get the clock adata **
 	clock_adata = adata[:,adata.var['is_clock']]
 
-	# ** get clock_X **
-	clock_X, _, _, _, _ = prep.unsupervised_prep(clock_adata,**config_dict)
 
 	# ** run **
 	null_log_evidence_vec = generate_null_dist.run(clock_adata, evidence_folder_out, log_mean_log_disp_coef, **copy.deepcopy(config_dict))
 
 
-
+	# ** release memory **
+	del clock_adata
+	gc.collect()
 	
 
 
@@ -344,6 +345,11 @@ def run(adata,
 
 
 
+		# ** release memory **
+		del cycler_adata
+		gc.collect()
+
+
 
 		# --- IDENTIFY DE NOVO CYCLERS ---
 
@@ -362,7 +368,9 @@ def run(adata,
 		adata.var.loc[new_de_novo_cycler_genes,'is_cycler'] = True
 
 
-
+		# ** release memory **
+		del hv_adata
+		gc.collect()
 
 
 
