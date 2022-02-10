@@ -14,7 +14,7 @@ from . import objective_functions
 
 class ClockGenePosterior(torch.nn.Module):
 
-	def __init__(self,gene_param_dict,gene_prior_dict,num_grid_points,clock_indices,use_nb=False,log_mean_log_disp_coef=None,min_amp=0,max_amp=2.5,use_clock_output_only=False):
+	def __init__(self,gene_param_dict,gene_prior_dict,num_grid_points,clock_indices,use_nb=False,log_mean_log_disp_coef=None,min_amp=0,max_amp=2.5):
 		super(ClockGenePosterior, self).__init__()
 
 		self.clock_indices = clock_indices
@@ -26,7 +26,6 @@ class ClockGenePosterior(torch.nn.Module):
 		self.min_amp = min_amp
 		self.max_amp = max_amp
 		self.num_genes = self.gene_param_dict['mu_loc'].shape[0]
-		self.use_clock_output_only = use_clock_output_only
 
 
 
@@ -96,56 +95,52 @@ class ClockGenePosterior(torch.nn.Module):
 
 		# --- GET THE DISTRIB DICT AND CLOCK LOC SCALE DICT ---
 		
+		# ** get the clock gene param dict **
+		clock_gene_param_dict = self.get_clock_gene_param_dict()
+
+		# ** clock loc scale **
+		clock_gene_param_loc_scale_dict = utils.get_distribution_loc_and_scale(gene_param_dict=clock_gene_param_dict, min_amp = self.min_amp, max_amp = self.max_amp, prep = True)
+		
 
 		# ** get distribution dict **
-
-		# input gene distrib dict
-		input_distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = self.gene_param_dict, gene_prior_dict = self.gene_prior_dict, max_amp = self.max_amp, min_amp = self.min_amp)
-		
-		# output gene distrib dict
-		if self.use_clock_output_only:
-			output_distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = self.get_clock_gene_param_dict(), gene_prior_dict = self.gene_prior_dict, max_amp = self.max_amp, min_amp = self.min_amp)			
-		else:
-			output_distrib_dict = input_distrib_dict
-
-		# --- COMPUTE THE EXPECTATION LOG LIKELIHOOD OF THE CYCLING GENES ---
+		distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = self.gene_param_dict, gene_prior_dict = self.gene_prior_dict, max_amp = self.max_amp, min_amp = self.min_amp)
 
 
-		# subset gene_X and distrib_dict to core clock genes only if need to
-		if self.use_clock_output_only:
-			gene_X = gene_X[:,self.clock_indices]
+		# --- COMPUTE THE EXPECTATION LOG LIKELIHOOD OF THE CORE CLOCK GENES ---
+
+		# clock_gene_expectation_log_likelihood = objective_functions.compute_expectation_log_likelihood(gene_X = gene_X[:,self.clock_indices], log_L = log_L,
+		# 	theta_sampled = theta_sampled, mu_loc = clock_gene_param_loc_scale_dict['mu_loc'], A_loc = clock_gene_param_loc_scale_dict['A_loc'],
+		# 	phi_euclid_loc = clock_gene_param_loc_scale_dict['phi_euclid_loc'], Q_prob_loc = clock_gene_param_loc_scale_dict['Q_prob_loc'],
+		# 	use_is_cycler_indicators = clock_gene_param_loc_scale_dict['Q_prob_loc'] is not None, exp_over_cells = False, use_flat_model = False, # exp_over_cells = False (to do in gene space)
+		# 	use_nb = self.use_nb, log_mean_log_disp_coef = self.log_mean_log_disp_coef, batch_indicator_mat = None, B_loc = None, rsample = True)
 
 
-		# compute the expectation of the LL
-		cycler_gene_expectation_log_likelihood = objective_functions.compute_expectation_log_likelihood(gene_X = gene_X, log_L = log_L, theta_sampled = theta_sampled,
-			mu_dist = output_distrib_dict['mu'], A_dist = output_distrib_dict['A'], phi_euclid_dist = output_distrib_dict['phi_euclid'], Q_prob_dist = output_distrib_dict['Q_prob'],
+		clock_gene_expectation_log_likelihood = objective_functions.compute_expectation_log_likelihood(gene_X = gene_X[:,self.clock_indices], log_L = log_L, theta_sampled = theta_sampled,
+			mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
 			num_gene_samples = num_gene_samples, exp_over_cells = False, use_flat_model = False,
-			use_nb = self.use_nb, log_mean_log_disp_coef = self.log_mean_log_disp_coef, rsample = True, use_is_cycler_indicators = output_distrib_dict['Q_prob'] is not None)
-		clock_gene_expectation_log_likelihood = cycler_gene_expectation_log_likelihood[self.clock_indices]
+			use_nb = self.use_nb, log_mean_log_disp_coef = self.log_mean_log_disp_coef, rsample = True, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
 
 
-
-
-		# --- COMPUTE THE KL OF THE CORE CLOCK GENES AND THE DE NOVO CYCLERS ---
+		# --- COMPUTE THE KL OF THE CORE CLOCK GENES AND THE HVG ---
 
 		# ** get variational and prior dist lists **
-		variational_dist_list = [input_distrib_dict['mu'],input_distrib_dict['A'],input_distrib_dict['phi_euclid']]
-		prior_dist_list = [input_distrib_dict['prior_mu'],input_distrib_dict['prior_A'],input_distrib_dict['prior_phi_euclid']]
-		if 'Q_prob' in input_distrib_dict and 'prior_Q_prob' in input_distrib_dict:
-			variational_dist_list += [input_distrib_dict['Q_prob']]
-			prior_dist_list += [input_distrib_dict['prior_Q_prob']]
+		variational_dist_list = [distrib_dict['mu'],distrib_dict['A'],distrib_dict['phi_euclid']]
+		prior_dist_list = [distrib_dict['prior_mu'],distrib_dict['prior_A'],distrib_dict['prior_phi_euclid']]
+		if 'Q_prob' in distrib_dict and 'prior_Q_prob' in distrib_dict:
+			variational_dist_list += [distrib_dict['Q_prob']]
+			prior_dist_list += [distrib_dict['prior_Q_prob']]
 
 
 
 		# ** compute the divegence **
-		clock_and_de_novo_cycler_kl = objective_functions.compute_divergence(variational_dist_list = variational_dist_list,
+		clock_and_hv_kl = objective_functions.compute_divergence(variational_dist_list = variational_dist_list,
 			prior_dist_list = prior_dist_list)
 
 
 
 		# --- COMPUTE ELBO ---
-		kl_loss = torch.mean(clock_and_de_novo_cycler_kl)
-		ll_loss = torch.mean(cycler_gene_expectation_log_likelihood)
+		kl_loss = torch.mean(clock_and_hv_kl)
+		ll_loss = torch.mean(clock_gene_expectation_log_likelihood)
 		elbo_loss = kl_loss - ll_loss
 
 

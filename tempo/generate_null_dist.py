@@ -82,7 +82,7 @@ def generate(adata,null_head_folder_out,learning_rate_dict,log_mean_log_disp_coe
 
 	# --- WRITE THE NULL LL LIST TO THE FOLDER ---
 	fileout = '%s/null_log_evidence_vec.txt' % (null_head_folder_out)
-	np.savetxt(fileout,null_ll_vec)
+	np.savetxt(fileout,null_log_evidence_list)
 
 
 	return null_log_evidence_list

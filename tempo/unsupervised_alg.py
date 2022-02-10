@@ -95,6 +95,8 @@ def run(adata,
 
 
 
+	print("WE IN HERE")
+
 
 	# --- MAKE FOLDER OUTS ---
 

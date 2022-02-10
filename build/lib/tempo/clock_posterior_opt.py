@@ -44,8 +44,7 @@ def run(gene_X,
 	vi_num_workers = 0,
 	vi_pin_memory = False,
 	batch_indicator_mat = None,
-	detect_anomaly = False,
-	use_clock_output_only = False):
+	detect_anomaly = False):
 	
 
 
@@ -106,8 +105,7 @@ def run(gene_X,
 		use_nb=use_nb,
 		log_mean_log_disp_coef=log_mean_log_disp_coef,
 		min_amp=min_amp,
-		max_amp=max_amp,
-		use_clock_output_only = use_clock_output_only)
+		max_amp=max_amp)
 		
 
 
@@ -115,13 +113,14 @@ def run(gene_X,
 	scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor = vi_lr_scheduler_factor, patience = vi_lr_scheduler_patience)
 		
 
-
+		
 	# ** run **
 	losses, kl_losses, ll_losses = [], [], []
 	loss_percent_differences = []
 	for epoch in range(0,vi_max_epochs):
 
-
+		
+		
 		# init total loss, kl_loss, and ll_loss
 		total_loss, kl_loss, ll_loss = 0, 0, 0
 		num_batches = 0
@@ -129,9 +128,7 @@ def run(gene_X,
 
 
 			# zero gradient
-			# optimizer.zero_grad()
-			for key, param in gene_param_dict.items():
-				gene_param_dict[key].grad = None
+			optimizer.zero_grad()
 
 
 			# get the batch_prior_theta_euclid_dist
@@ -206,8 +203,6 @@ def run(gene_X,
 			break
 
 
-
-
 	# ** write the loss list out **
 
 	# total loss
@@ -246,8 +241,7 @@ def run(gene_X,
 		use_nb=use_nb,
 		log_mean_log_disp_coef=log_mean_log_disp_coef,
 		min_amp=min_amp,
-		max_amp=max_amp,
-		use_clock_output_only=use_clock_output_only)
+		max_amp=max_amp)
 		
 	optimal_theta_posterior_likelihood = optimal_clock_gene_posterior_obj.compute_cell_phase_posterior_likelihood(gene_X,log_L,prior_theta_euclid_dist,num_gene_samples=num_gene_samples)
 
