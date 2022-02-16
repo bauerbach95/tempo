@@ -15,8 +15,8 @@ from . import prep
 def generate(adata,null_head_folder_out,learning_rate_dict,log_mean_log_disp_coef,min_amp,max_amp,num_gene_samples,use_nb,num_shuffles,config_dict):
 
 
-	# ** drop the config dict key for folder out **
-	del config_dict['folder_out']
+	# # ** drop the config dict key for folder out **
+	# del config_dict['folder_out']
 
 	
 
@@ -82,7 +82,7 @@ def generate(adata,null_head_folder_out,learning_rate_dict,log_mean_log_disp_coe
 
 	# --- WRITE THE NULL LL LIST TO THE FOLDER ---
 	fileout = '%s/null_log_evidence_vec.txt' % (null_head_folder_out)
-	np.savetxt(fileout,null_ll_vec)
+	np.savetxt(fileout,null_log_evidence_list)
 
 
 	return null_log_evidence_list

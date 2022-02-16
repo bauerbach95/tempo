@@ -22,7 +22,19 @@ from . import estimate_mean_disp_relationship
 from . import generate_null_dist
 from . import objective_functions
 from . import clock_gene_posterior
+from . import est_cell_phase_from_current_cyclers
+from . import identify_de_novo_cyclers
+from . import compute_clock_evidence
 import random
+import gc
+
+
+# bulk_cycler_info_path = '/users/benauerbach/dropbox/tempo_paper/figures/sim_data_figure_N_500_mean_lib_size_20000/experiment_0/clock_acrophase_prior.csv'
+# core_clock_gene_path = '/users/benauerbach/dropbox/tempo_paper/figures/sim_data_figure_N_500_mean_lib_size_20000/experiment_0/core_clock_genes.txt'
+
+
+
+# unsupervised_alg_2.run(adata, folder_out, bulk_cycler_info_path, core_clock_gene_path, 'Gene_0')
 
 
 def run(adata,
@@ -49,7 +61,7 @@ def run(adata,
 	prior_clock_Q_prob_alpha = 90,
 	prior_clock_Q_prob_beta = 10,
 	prior_non_clock_Q_prob_alpha = 1, 
-	prior_non_clock_Q_prob_beta = 9,
+	prior_non_clock_Q_prob_beta = 1,
 	use_noninformative_phase_prior = True,
 	use_nb = True,
 	mean_disp_init_coef = [-4,-0.2], # ** mean / disp relationship learning parameters **
@@ -84,8 +96,8 @@ def run(adata,
 	num_null_shuffles = 5,
 	use_clock_input_only = False,
 	use_clock_output_only = True,
-	frac_pos_cycler_samples_threshold = 0.1,
-	A_loc_pearson_residual_threshold = 0.5,
+	frac_pos_cycler_samples_threshold = 0.8,
+	A_loc_pearson_residual_threshold = 1.0,
 	confident_cell_interval_size_threshold = 12.0,
 	max_num_alg_steps=3,
 	opt_phase_est_gene_params = True,
@@ -95,8 +107,6 @@ def run(adata,
 
 
 
-
-	print("WE IN HERE")
 
 
 	# --- MAKE FOLDER OUTS ---
@@ -124,6 +134,7 @@ def run(adata,
 	# ** get **
 	config_dict = locals()
 	del config_dict['adata']
+	del config_dict['folder_out']
 
 	# ** write **
 	config_path = "%s/config.txt" % folder_out
@@ -229,10 +240,6 @@ def run(adata,
 
 	# --- ORDER ADATA S.T. CORE CLOCK GENES FIRST AND THEN HV GENES SECOND ---
 	adata = adata[:,list(core_clock_genes) + list(hv_genes)]
-	print("Num HV genes: %s" % str(len(hv_genes)))
-	print("Adata shape before starting algorithm: %s" % str(adata.shape))
-
-
 
 
 	# --- GENERATE THE NULL DISTRIBUTION OF CORE CLOCK EVIDENCE ---
@@ -242,13 +249,14 @@ def run(adata,
 	# ** get the clock adata **
 	clock_adata = adata[:,adata.var['is_clock']]
 
-	# ** get clock_X **
-	clock_X, _, _, _, _ = prep.unsupervised_prep(clock_adata,**config_dict)
-
 	# ** run **
-	null_log_evidence_vec = generate_null_dist.generate(adata = clock_adata, null_head_folder_out=evidence_folder_out,learning_rate_dict=vi_gene_param_lr_dict,
-		log_mean_log_disp_coef=log_mean_log_disp_coef,min_amp=min_amp,max_amp=max_amp,num_gene_samples=num_harmonic_est_gene_samples,use_nb=use_nb,num_shuffles=num_null_shuffles,config_dict=copy.deepcopy(config_dict))
+	null_log_evidence_vec = generate_null_dist.run(clock_adata.copy(), evidence_folder_out, log_mean_log_disp_coef, **copy.deepcopy(config_dict))
 
+
+	# ** release memory **
+	del clock_adata
+	gc.collect()
+	
 
 
 
@@ -277,155 +285,35 @@ def run(adata,
 
 		# --- ESTIMATE THE CELL PHASE GIVEN CURRENT KNOWN CYCLING GENES ---
 
-
-
 		print("--- ESTIMATING CELL PHASE POSTERIOR USING CURRENT CYCLERS ---")
+
 
 
 		# ** get cycler adata **
 		cycler_adata = adata[:,adata.var['is_cycler']]
 
-		# ** initialize variational parameters to those from previous runs for clock and confident HVG **
+		# ** initialize variational / prior parameters to those from previous runs for clock and de novo cyclers **
 		if algorithm_step >= 1:
-
-			# previous alg step subfolder
 			previous_alg_step_subfolder = "%s/%s" % (alg_result_head_folder, algorithm_step - 1)
-
-			# load gene param df for previous round's cycler genes
-			previous_cycler_gene_param_df_fileout = '%s/cell_phase_estimation/gene_prior_and_posterior.tsv' % previous_alg_step_subfolder
-			previous_cycler_gene_param_df = pd.read_table(previous_cycler_gene_param_df_fileout,sep='\t',index_col='gene')
-
-			# load the gene param df for the previous round's de novo cyclers
-			previous_de_novo_cycler_gene_param_df_fileout = '%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % previous_alg_step_subfolder
-			previous_de_novo_cycler_gene_param_df = pd.read_table(previous_de_novo_cycler_gene_param_df_fileout,sep='\t',index_col='gene')
-			previous_de_novo_cyclers = np.intersect1d(np.array(cycler_adata.var_names), np.array(previous_de_novo_cycler_gene_param_df.index))
-			previous_de_novo_cycler_gene_param_df = previous_de_novo_cycler_gene_param_df.loc[previous_de_novo_cyclers]
-
-			# concat previous cycler and de novo cycler param df's
-			current_cycler_gene_param_df = pd.concat((previous_cycler_gene_param_df, previous_de_novo_cycler_gene_param_df))
-
-			# filter cols relevant for initializing variational parameters
-			cols_to_keep = list(filter(lambda x: "prior" not in x, current_cycler_gene_param_df.columns)) # drop prior columns
-			current_cycler_gene_param_df = current_cycler_gene_param_df[cols_to_keep]
-
-			# make sure current_cycler_gene_param_df is in the same order as cycler_adata
-			current_cycler_gene_param_df = current_cycler_gene_param_df.loc[np.array(cycler_adata.var_names)] 
-
-			# add parameters to adata to initialize cycler genes 
-			for col in cols_to_keep:
-				cycler_adata.var[col] = np.array(current_cycler_gene_param_df[col])
+			cycler_adata = utils.init_cycler_adata_variational_and_prior_dist_from_prev_round(cycler_adata, previous_alg_step_subfolder, enforce_de_novo_cycler_flat_Q_prior = False)
 
 
 
+			# print("previous_alg_step_subfolder")
+			# print(previous_alg_step_subfolder)
+			# print("TEMPORARILY WRITING OUT CYCLER ADATA AT SECOND STEP")
+			# torch.save(cycler_adata,'/users/benauerbach/desktop/cycler_adata.pt')
 
-		# ** do the prep **
-		cycler_gene_X, log_L, cycler_gene_param_dict, cell_prior_dict, cycler_gene_prior_dict = prep.unsupervised_prep(cycler_adata,**config_dict)
-		if not opt_phase_est_gene_params or init_variational_dist_to_prior: # set variational to priors if opt_phase_est_gene_params is False
-			cycler_gene_param_dict = prep.get_zero_kl_gene_param_dict_from_gene_prior_dict(cycler_gene_prior_dict)
-		if use_clock_output_only:
-			clock_indices = np.where(cycler_adata.var['is_clock'])[0]
-		else:
-			clock_indices = np.arange(0,cycler_adata.shape[1])
-		# non_clock_indices = np.setdiff1d(np.arange(0,cycler_adata.shape[1]), clock_indices)
-		non_clock_indices = np.setdiff1d(np.arange(0,cycler_adata.shape[1]), np.where(cycler_adata.var['is_clock'])[0])
-		cycler_gene_prior_dict['prior_Q_prob_alpha'][non_clock_indices] = torch.ones((non_clock_indices.shape[0])) # set the non-clock cycler Q priors to flat
-		# cycler_gene_prior_dict['prior_Q_prob_alpha'][non_clock_indices] = 3 * torch.ones((non_clock_indices.shape[0])) # set the non-clock cycler Q priors to flat
-		cycler_gene_prior_dict['prior_Q_prob_beta'][non_clock_indices] = torch.ones((non_clock_indices.shape[0]))
+			# a=['cycler_adata', 'phase_est_folder_out', 'log_mean_log_disp_coef', 'config_dict']
+			# b=[cycler_adata, phase_est_folder_out, log_mean_log_disp_coef, config_dict]
+			# d=dict(zip(a,b))
+			# torch.save(d,'/users/benauerbach/desktop/pre_inference_dict.pt')
 
 
+		# ** estimate cell phase from clock + de novo cyclers **
+		phase_est_folder_out = alg_step_subfolder
+		opt_cycler_theta_posterior_likelihood, opt_cycler_gene_param_dict_unprepped = est_cell_phase_from_current_cyclers.run(cycler_adata, phase_est_folder_out, log_mean_log_disp_coef, **config_dict)
 
-		# ** get prior theta euclid dist **
-		prior_theta_euclid_dist = utils.init_distributions_from_param_dicts(cell_prior_dict = cell_prior_dict)['prior_theta_euclid']
-
-
-
-		# ** write out the params at algorithm init **
-		
-		# get cell posterior df at init
-		cycler_gene_posterior_obj_init = clock_gene_posterior.ClockGenePosterior(cycler_gene_param_dict,None,num_phase_grid_points,clock_indices,use_nb=use_nb,log_mean_log_disp_coef=log_mean_log_disp_coef,min_amp=min_amp,max_amp=max_amp)
-		theta_posterior_likelihood_init = cycler_gene_posterior_obj_init.compute_cell_phase_posterior_likelihood(cycler_gene_X,log_L,prior_theta_euclid_dist,num_gene_samples=100)
-
-
-		# get df's
-		cell_posterior_df = params_to_df.cell_multinomial_params_to_param_df(np.array(cycler_adata.obs.index), theta_posterior_likelihood_init)
-		cell_prior_df = params_to_df.cell_powerspherical_params_dict_to_param_df(np.array(cycler_adata.obs.index), cell_prior_dict)
-		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(cycler_gene_param_dict), cycler_gene_prior_dict, min_amp, max_amp)
-
-
-		# write
-		if not os.path.exists('%s/cell_phase_estimation' % alg_step_subfolder):
-			os.makedirs('%s/cell_phase_estimation' % alg_step_subfolder)
-		cell_posterior_fileout = '%s/cell_phase_estimation/cell_posterior_init.tsv' % alg_step_subfolder # % (folder_out)
-		cell_posterior_df.to_csv(cell_posterior_fileout,sep='\t')
-		cell_prior_fileout = '%s/cell_phase_estimation/cell_prior_init.tsv' % alg_step_subfolder #  % (folder_out)
-		cell_prior_df.to_csv(cell_prior_fileout,sep='\t')
-		gene_param_df_fileout = '%s/cell_phase_estimation/gene_prior_and_posterior_init.tsv' % alg_step_subfolder #  (folder_out)
-		gene_param_df.to_csv(gene_param_df_fileout,sep='\t')
-
-
-		# print("TEMPORARILY FIXING PHI")
-		# gene_param_grad_dict = {
-		# 	"mu_loc" : True, "mu_log_scale" : True,
-		# 	"phi_euclid_loc" : False, "phi_log_scale" : False,
-		# 	"A_log_alpha" : True, "A_log_beta" : True,
-		# 	"Q_prob_log_alpha" : True, "Q_prob_log_beta" : True,
-		# }
-		gene_param_grad_dict = None
-
-
-
-		# ** estimate cell phase and optimize gene parameters **
-		if opt_phase_est_gene_params:
-			opt_cycler_theta_posterior_likelihood, opt_cycler_gene_param_dict_unprepped = clock_posterior_opt.run(gene_X = cycler_gene_X,
-				clock_indices = clock_indices,
-				log_L = log_L,
-				gene_param_dict = cycler_gene_param_dict,
-				gene_prior_dict = cycler_gene_prior_dict,
-				min_amp = min_amp,
-				max_amp = max_amp,
-				prior_theta_euclid_dist = prior_theta_euclid_dist, # clock_posterior_dist
-				folder_out = '%s/cell_phase_estimation' % alg_step_subfolder, # '%s/clock_and_confident_hv_inference' % folder_out,
-				learning_rate_dict = vi_gene_param_lr_dict,
-				gene_param_grad_dict = gene_param_grad_dict, # None,
-				use_nb = use_nb,
-				log_mean_log_disp_coef = log_mean_log_disp_coef,
-				num_grid_points = num_phase_grid_points,
-				num_cell_samples = num_phase_est_cell_samples,
-				num_gene_samples = num_phase_est_gene_samples,
-				vi_max_epochs = vi_max_epochs,
-				vi_print_epoch_loss = vi_print_epoch_loss,
-				vi_improvement_window = vi_improvement_window,
-				vi_convergence_criterion = vi_convergence_criterion,
-				vi_lr_scheduler_patience = vi_lr_scheduler_patience,
-				vi_lr_scheduler_factor = vi_lr_scheduler_factor,
-				vi_batch_size = vi_batch_size,
-				vi_num_workers = vi_num_workers,
-				vi_pin_memory = vi_pin_memory,
-				batch_indicator_mat = None,
-				detect_anomaly = detect_anomaly)
-		else:
-			opt_cycler_theta_posterior_likelihood = theta_posterior_likelihood_init
-			opt_cycler_gene_param_dict_unprepped = cycler_gene_param_dict
-
-
-
-		# ** write out the params / priors as a DataFrame **
-
-		# get df's
-		cell_posterior_df = params_to_df.cell_multinomial_params_to_param_df(np.array(cycler_adata.obs.index), opt_cycler_theta_posterior_likelihood)
-		cell_prior_df = params_to_df.cell_powerspherical_params_dict_to_param_df(np.array(cycler_adata.obs.index), cell_prior_dict)
-		gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(cycler_adata.var_names), utils.prep_gene_params(opt_cycler_gene_param_dict_unprepped), cycler_gene_prior_dict, min_amp, max_amp)
-
-
-
-
-		# write
-		cell_posterior_fileout = '%s/cell_phase_estimation/cell_posterior.tsv' % alg_step_subfolder # % (folder_out)
-		cell_posterior_df.to_csv(cell_posterior_fileout,sep='\t')
-		cell_prior_fileout = '%s/cell_phase_estimation/cell_prior.tsv' % alg_step_subfolder #  % (folder_out)
-		cell_prior_df.to_csv(cell_prior_fileout,sep='\t')
-		gene_param_df_fileout = '%s/cell_phase_estimation/gene_prior_and_posterior.tsv' % alg_step_subfolder #  (folder_out)
-		gene_param_df.to_csv(gene_param_df_fileout,sep='\t')
 
 
 
@@ -435,28 +323,17 @@ def run(adata,
 		print("--- ESTIMATING CLOCK EVIDENCE FOR THE CELL PHASE POSTERIOR ---")
 
 		# ** compute **
-		gene_param_loc_scale_dict = utils.get_distribution_loc_and_scale(gene_param_dict = opt_cycler_gene_param_dict_unprepped, min_amp = min_amp, max_amp = max_amp, prep = True) # ** get the loc scale dict **
-		distrib_dict = utils.init_distributions_from_param_dicts(gene_param_dict = opt_cycler_gene_param_dict_unprepped, max_amp = max_amp, min_amp = min_amp, prep = True) # ** get the distrib dict **
-		theta_sampled = cell_posterior.ThetaPosteriorDist(opt_cycler_theta_posterior_likelihood).sample(num_samples=num_phase_est_cell_samples) # ** get theta sampled **
-		clock_cell_gene_ll_sampled = objective_functions.compute_sample_log_likelihood(clock_X, log_L,
-		    theta_sampled = theta_sampled,
-		    mu_dist = distrib_dict['mu'], A_dist = distrib_dict['A'], phi_euclid_dist = distrib_dict['phi_euclid'], Q_prob_dist = distrib_dict['Q_prob'],
-		    num_cell_samples = num_phase_est_cell_samples, num_gene_samples = num_phase_est_gene_samples, use_flat_model = False,
-		    use_nb = use_nb, log_mean_log_disp_coef = log_mean_log_disp_coef, rsample = False, use_is_cycler_indicators = distrib_dict['Q_prob'] is not None)
-		clock_log_evidence_sampled = torch.sum(torch.sum(clock_cell_gene_ll_sampled,dim=0),dim=0).flatten() # ** get the mc log evidence **
-		clock_log_evidence = torch.mean(clock_log_evidence_sampled).item()
-
-
-		# ** compare the clock evidence to random **
-		log10_bf_tempo_vs_null = (clock_log_evidence - np.max(null_log_evidence_vec)) / np.log(10)
-
-
+		clock_log_evidence = compute_clock_evidence.run(cycler_adata, opt_cycler_gene_param_dict_unprepped,
+			opt_cycler_theta_posterior_likelihood, log_mean_log_disp_coef, **config_dict)
 
 		# ** write out evidence **
 		fileout = '%s/step_%s_clock_evidence.txt' % (evidence_folder_out, algorithm_step)
 		with open(fileout,"wb") as file_obj:
 			file_obj.write(str(clock_log_evidence).encode())
 
+
+		# ** compare the clock evidence to random **
+		log10_bf_tempo_vs_null = (clock_log_evidence - np.max(null_log_evidence_vec)) / np.log(10)
 
 
 		# ** halt algorithm progression if not sufficiently better than random **
@@ -475,313 +352,32 @@ def run(adata,
 
 
 
-
-		# --- GET HIGHLY CONFIDENT CELLS ---
-
-		print("--- IDENTIFYING HIGHLY CONFIDENT CELLS BASED ON CELL PHASE POSTERIOR ---")
-
-		if confident_cell_interval_size_threshold is None:
-			confident_cell_indices = np.arange(0,adata.shape[0])
-		else:
-			# ** make the dist **
-			cell_posterior_dist = cell_posterior.ThetaPosteriorDist(opt_cycler_theta_posterior_likelihood.detach())
-
-			# ** compute the confidence intervals **
-			cell_confidence_intervals = cell_posterior_dist.compute_confidence_interval(confidence=0.90)
-			cell_confidence_intervals = (np.sum(cell_confidence_intervals,axis=1) / cell_posterior_dist.num_grid_points) * 24.0
-
-			# ** get confident cell indices **
-			confident_cell_indices = np.where(cell_confidence_intervals <= confident_cell_interval_size_threshold)[0]
+		# ** release memory **
+		del cycler_adata
+		gc.collect()
 
 
 
-
-
-		# --- GET HV ADATA AND PRIORS ---
-
+		# --- IDENTIFY DE NOVO CYCLERS ---
 
 		# ** get hv adata **
 		hv_adata = adata[:,(~(adata.var['is_cycler'])) & (adata.var['is_hv'])]
 
-		# ** restrict to confident cells **
-		hv_adata = hv_adata[confident_cell_indices,:]
-
-
-
-		# ** initialize variational parameters to final converged params from previous runs for current non-cycling genes **
+		# ** initialize variational / prior parameters to those from previous runs for clock and de novo cyclers **
 		if algorithm_step >= 1:
-
-			# previous alg step subfolder
 			previous_alg_step_subfolder = "%s/%s" % (alg_result_head_folder, algorithm_step - 1)
+			hv_adata = utils.init_hv_adata_variational_and_prior_dist_from_prev_round(hv_adata, previous_alg_step_subfolder)
 
-			# load the gene param df for the previous round's de novo cyclers
-			previous_de_novo_cycler_gene_param_df_fileout = '%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % previous_alg_step_subfolder
-			previous_de_novo_cycler_gene_param_df = pd.read_table(previous_de_novo_cycler_gene_param_df_fileout,sep='\t',index_col='gene')
-			
-			# get the current_non_cycler_gene_param_df
-			current_non_cycler_gene_param_df = previous_de_novo_cycler_gene_param_df.loc[np.array(hv_adata.var_names)]
 
-			# filter cols relevant for initializing variational parameters
-			cols_to_keep = list(filter(lambda x: "prior" not in x, current_non_cycler_gene_param_df.columns)) # drop prior columns
-			current_non_cycler_gene_param_df = current_non_cycler_gene_param_df[cols_to_keep]
-
-
-			# add parameters to adata to initialize cycler genes 
-			for col in cols_to_keep:
-				hv_adata.var[col] = np.array(current_non_cycler_gene_param_df[col])
-
-
-
-
-
-
-		# --- BURNING IN HVG PARAMETERS WHEN Q FIXED TO 1 ---
-
-		print("--- BURNING IN HARMONIC PARAMETERS FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
-
-
-		# ** prep **
-		hv_gene_X, log_L, hv_gene_param_dict, cell_prior_dict, hv_gene_prior_dict = prep.unsupervised_prep(hv_adata,**config_dict)
-		hv_gene_prior_dict['prior_Q_prob_alpha'] = 999.0 * torch.ones(hv_adata.shape[1])
-		hv_gene_prior_dict['prior_Q_prob_beta'] = torch.ones(hv_adata.shape[1])
-		hv_gene_param_dict['Q_prob_log_alpha'] = torch.nn.Parameter(torch.log(999.0 * torch.ones(hv_adata.shape[1])).detach(),requires_grad=True) # fit Q params to values that yield Q =~ 1
-		hv_gene_param_dict['Q_prob_log_beta'] = torch.nn.Parameter(torch.log(torch.ones(hv_adata.shape[1])).detach(),requires_grad=True)
-		gene_param_grad_dict = {
-			"mu_loc" : True, "mu_log_scale" : True,
-			"phi_euclid_loc" : True, "phi_log_scale" : True,
-			"A_log_alpha" : True, "A_log_beta" : True,
-			"Q_prob_log_alpha" : False, "Q_prob_log_beta" : False,
-		}
-
-
-		# ** run **
-		if num_harmonic_est_gene_samples > 1:
-			_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
-				log_L = log_L, 
-				gene_param_dict = hv_gene_param_dict, 
-				gene_prior_dict = hv_gene_prior_dict,
-				folder_out = "%s/de_novo_cycler_id_preinference_burn_in" % (alg_step_subfolder),  # '%s/hv_preinference' % folder_out,
-				learning_rate_dict = vi_gene_param_lr_dict,
-				theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
-				gene_param_grad_dict = gene_param_grad_dict,
-				max_iters = vi_max_epochs, 
-				num_cell_samples = num_harmonic_est_cell_samples,
-				num_gene_samples = 1,
-				max_amp = max_amp,
-				min_amp = min_amp,
-				print_epoch_loss = vi_print_epoch_loss,
-				improvement_window = vi_improvement_window,
-				convergence_criterion = vi_convergence_criterion,
-				lr_scheduler_patience = vi_lr_scheduler_patience,
-				lr_scheduler_factor = vi_lr_scheduler_factor,
-				use_flat_model = False,
-				batch_size = vi_batch_size,
-				num_workers = vi_num_workers,
-				pin_memory = vi_pin_memory,
-				use_nb = use_nb,
-				log_mean_log_disp_coef = log_mean_log_disp_coef,
-				batch_indicator_mat = None,
-				detect_anomaly = detect_anomaly,
-				expectation_point_est_only = False)
-		else:
-			opt_hv_gene_param_dict_unprepped = hv_gene_param_dict
-
-
-
-
-
-
-
-
-
-
-
-
-		# --- FIT HVG PARAMETERS WHEN Q FIXED TO 1 ---
-
-		print("--- FITTING HARMONIC PARAMETERS FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
-
-
-
-		# ** run **
-		_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
-			log_L = log_L, 
-			gene_param_dict = opt_hv_gene_param_dict_unprepped, # hv_gene_param_dict, 
-			gene_prior_dict = hv_gene_prior_dict,
-			folder_out = "%s/de_novo_cycler_id_preinference" % (alg_step_subfolder),  # '%s/hv_preinference' % folder_out,
-			learning_rate_dict = vi_gene_param_lr_dict,
-			theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
-			gene_param_grad_dict = gene_param_grad_dict,
-			max_iters = vi_max_epochs, 
-			num_cell_samples = num_harmonic_est_cell_samples,
-			num_gene_samples = num_harmonic_est_gene_samples,
-			max_amp = max_amp,
-			min_amp = min_amp,
-			print_epoch_loss = vi_print_epoch_loss,
-			improvement_window = vi_improvement_window,
-			convergence_criterion = vi_convergence_criterion,
-			lr_scheduler_patience = vi_lr_scheduler_patience,
-			lr_scheduler_factor = vi_lr_scheduler_factor,
-			use_flat_model = False,
-			batch_size = vi_batch_size,
-			num_workers = vi_num_workers,
-			pin_memory = vi_pin_memory,
-			use_nb = use_nb,
-			log_mean_log_disp_coef = log_mean_log_disp_coef,
-			batch_indicator_mat = None,
-			detect_anomaly = detect_anomaly)
-
-
-
-		# --- BURN IN Q FOR HVG ---
-
-		print("--- BURNING IN CYCLING INDICATOR PARAMETER FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
-
-
-		# ** prep **
-		hv_gene_X, log_L, _, _, hv_gene_prior_dict = prep.unsupervised_prep(hv_adata,**config_dict)
-		gene_param_grad_dict = {
-			"mu_loc" : False, "mu_log_scale" : False,
-			"phi_euclid_loc" : False, "phi_log_scale" : False,
-			"A_log_alpha" : False, "A_log_beta" : False,
-			"Q_prob_log_alpha" : True, "Q_prob_log_beta" : True,
-		}
-
-
-
-		# ** run **
-		if num_harmonic_est_gene_samples > 1:
-			_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
-				log_L = log_L, 
-				gene_param_dict = opt_hv_gene_param_dict_unprepped, 
-				gene_prior_dict = hv_gene_prior_dict,
-				folder_out = "%s/de_novo_cycler_id_burn_in" % (alg_step_subfolder), # '%s/hv_preinference_Q_fit' % folder_out,
-				learning_rate_dict = vi_gene_param_lr_dict,
-				theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
-				gene_param_grad_dict = gene_param_grad_dict,
-				max_iters = vi_max_epochs, 
-				num_cell_samples = num_harmonic_est_cell_samples,
-				num_gene_samples = 1,
-				max_amp = max_amp,
-				min_amp = min_amp,
-				print_epoch_loss = vi_print_epoch_loss,
-				improvement_window = vi_improvement_window,
-				convergence_criterion = vi_convergence_criterion,
-				lr_scheduler_patience = vi_lr_scheduler_patience,
-				lr_scheduler_factor = vi_lr_scheduler_factor,
-				use_flat_model = False,
-				batch_size = vi_batch_size,
-				num_workers = vi_num_workers,
-				pin_memory = vi_pin_memory,
-				use_nb = use_nb,
-				log_mean_log_disp_coef = log_mean_log_disp_coef,
-				batch_indicator_mat = None,
-				detect_anomaly = detect_anomaly,
-				expectation_point_est_only = False) # True
-		else:
-			opt_hv_gene_param_dict_unprepped = opt_hv_gene_param_dict_unprepped
-
-
-
-
-
-		# --- FIT Q FOR HVG ---
-
-		print("--- FITTING CYCLING INDICATOR PARAMETER FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
-
-
-		# ** prep **
-		hv_gene_X, log_L, _, _, hv_gene_prior_dict = prep.unsupervised_prep(hv_adata,**config_dict)
-		gene_param_grad_dict = {
-			"mu_loc" : False, "mu_log_scale" : False,
-			"phi_euclid_loc" : False, "phi_log_scale" : False,
-			"A_log_alpha" : False, "A_log_beta" : False,
-			"Q_prob_log_alpha" : True, "Q_prob_log_beta" : True,
-		}
-
-
-
-		# ** run **
-		_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
-			log_L = log_L, 
-			gene_param_dict = opt_hv_gene_param_dict_unprepped, 
-			gene_prior_dict = hv_gene_prior_dict,
-			folder_out = "%s/de_novo_cycler_id" % (alg_step_subfolder), # '%s/hv_preinference_Q_fit' % folder_out,
-			learning_rate_dict = vi_gene_param_lr_dict,
-			theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
-			gene_param_grad_dict = gene_param_grad_dict,
-			max_iters = vi_max_epochs, 
-			num_cell_samples = num_harmonic_est_cell_samples,
-			num_gene_samples = num_harmonic_est_gene_samples,
-			max_amp = max_amp,
-			min_amp = min_amp,
-			print_epoch_loss = vi_print_epoch_loss,
-			improvement_window = vi_improvement_window,
-			convergence_criterion = vi_convergence_criterion,
-			lr_scheduler_patience = vi_lr_scheduler_patience,
-			lr_scheduler_factor = vi_lr_scheduler_factor,
-			use_flat_model = False,
-			batch_size = vi_batch_size,
-			num_workers = vi_num_workers,
-			pin_memory = vi_pin_memory,
-			use_nb = use_nb,
-			log_mean_log_disp_coef = log_mean_log_disp_coef,
-			batch_indicator_mat = None,
-			detect_anomaly = detect_anomaly)
-
-
-
-
-
-
-		# --- IDENTIFY THE HVG THAT ARE HIGHLY CONFIDENT CYCLERS ---
-
-		print("--- IDENTIFYING DE NOVO CYCLERS ---")
-
-
-		# ** compute the pearson residuals of the amplitude loc's (based on mesor - amplitude relationship across all genes) **
-		opt_hv_gene_param_loc_scale_dict = utils.get_distribution_loc_and_scale(gene_param_dict=opt_hv_gene_param_dict_unprepped,min_amp=min_amp,max_amp=max_amp,prep=True)
-		mu_loc = opt_hv_gene_param_loc_scale_dict['mu_loc'].detach().numpy()
-		A_loc = opt_hv_gene_param_loc_scale_dict['A_loc'].detach().numpy()
-		kernel_model = statsmodels.nonparametric.kernel_regression.KernelReg(A_loc, mu_loc.reshape(-1,1), var_type = ['c'], bw = [0.1 / np.log10(np.e)]) 
-		pred_A,marginal_effects = kernel_model.fit()
-		est_std = (np.mean((A_loc - pred_A)**2)) ** 0.5
-		A_loc_pearson_residuals = (A_loc - pred_A) / est_std
-
-
-
-		# ** compute the fraction of Q = 1 for cyclers **
-		num_Q_samples = 100
-		hvg_gene_param_dist_dict = utils.init_distributions_from_param_dicts(gene_param_dict = opt_hv_gene_param_dict_unprepped, prep = True)
-		Q_samples = utils.get_is_cycler_samples_from_dist(hvg_gene_param_dist_dict['Q_prob'],num_gene_samples=num_Q_samples,rsample=False)
-		num_pos_cycler_samples = torch.sum(Q_samples,dim=0).detach().numpy()
-		frac_pos_cycler_samples = num_pos_cycler_samples / num_Q_samples
-
-
-
-		# ** get HV gene param df **
-		hv_gene_param_df = params_to_df.gene_param_dicts_to_param_df(list(hv_adata.var_names), utils.prep_gene_params(opt_hv_gene_param_dict_unprepped), hv_gene_prior_dict, min_amp, max_amp)
-
-
-		# ** add A_loc_pearson_residuals and frac_pos_cycler_samples to HV adata and gene parameter DF **
-		hv_gene_param_df['A_loc_pearson_residual'] = A_loc_pearson_residuals
-		hv_gene_param_df['frac_pos_cycler_samples'] = frac_pos_cycler_samples
-		hv_adata.var['A_loc_pearson_residual'] = A_loc_pearson_residuals
-		hv_adata.var['frac_pos_cycler_samples'] = frac_pos_cycler_samples
-
-
-
-		# ** write out gene param DF **
-		hv_gene_param_df_fileout = '%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % alg_step_subfolder # % (folder_out)
-		hv_gene_param_df.to_csv(hv_gene_param_df_fileout,sep='\t')
-
-
-
-		# ** get cycler genes based on frac_pos_cycler_samples and A_loc_pearson_residual_threshold **
-		confident_hv_gene_param_df = hv_gene_param_df[(hv_gene_param_df['frac_pos_cycler_samples'] >= frac_pos_cycler_samples_threshold) & (hv_gene_param_df['A_loc_pearson_residual'] >= A_loc_pearson_residual_threshold)]
-		new_de_novo_cycler_genes = np.array(list(confident_hv_gene_param_df.index))
+		# ** id de novo cyclers **
+		de_novo_cycler_detection_folder_out = alg_step_subfolder
+		new_de_novo_cycler_genes = identify_de_novo_cyclers.run(hv_adata, opt_cycler_theta_posterior_likelihood, de_novo_cycler_detection_folder_out, log_mean_log_disp_coef, **config_dict)
 		adata.var.loc[new_de_novo_cycler_genes,'is_cycler'] = True
-			
+
+
+		# ** release memory **
+		del hv_adata
+		gc.collect()
 
 
 

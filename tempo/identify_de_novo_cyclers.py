@@ -1,3 +1,4 @@
+
 import sys
 import numpy as np
 import torch
@@ -21,13 +22,15 @@ from . import cell_posterior
 from . import estimate_mean_disp_relationship
 from . import generate_null_dist
 from . import objective_functions
+from . import clock_gene_posterior
+import random
 
 
-
-
-def run(adata,
-	folder_out,
+# adata, opt_cycler_theta_posterior_likelihood, algorithm_step, alg_result_head_folder, config_dict
+def run(hv_adata, opt_cycler_theta_posterior_likelihood, alg_step_subfolder, log_mean_log_disp_coef,
 	bulk_cycler_info_path,
+	core_clock_gene_path,
+	reference_gene = 'Arntl',
 	min_gene_prop = 1e-5,
 	min_amp = 0.0, # ** prep parameters **
 	max_amp = 1.5 / np.log10(np.e),
@@ -49,18 +52,18 @@ def run(adata,
 	prior_non_clock_Q_prob_alpha = 1, 
 	prior_non_clock_Q_prob_beta = 9,
 	use_nb = True,
-	mean_disp_init_coef = [-4,-0.2], # ** mean / disp relationship learning parameters **
-	mean_disp_log10_prop_bin_marks = list(np.linspace(-5,-1,20)), 
-	mean_disp_max_num_genes_per_bin = 50,
 	mu_loc_lr = 1e-1, # ** conditional posterior opt parameters **
 	mu_log_scale_lr = 1e-1,
 	A_log_alpha_lr = 1e-1,
 	A_log_beta_lr = 1e-1,
-	phi_euclid_loc_lr = 1e-1, # 5.0
-	phi_log_scale_lr = 1e-1, # 5.0
+	phi_euclid_loc_lr = 5.0,
+	phi_log_scale_lr = 1.0,
 	Q_prob_log_alpha_lr = 1e-1,
 	Q_prob_log_beta_lr = 1e-1,
-	num_gene_samples = 5,
+	num_phase_est_cell_samples = 10,
+	num_phase_est_gene_samples = 10,
+	num_harmonic_est_cell_samples = 5,
+	num_harmonic_est_gene_samples = 3,
 	vi_max_epochs = 300,
 	vi_print_epoch_loss = True,
 	vi_improvement_window = 10,
@@ -70,40 +73,29 @@ def run(adata,
 	vi_batch_size = 3000,
 	vi_num_workers = 0,
 	vi_pin_memory = False,
-	batch_indicator_mat = None,
 	test_mode = False,
 	frac_pos_cycler_samples_threshold = 0.1,
 	A_loc_pearson_residual_threshold = 0.5,
+	confident_cell_interval_size_threshold = 12.0,
 	**kwargs):
 
 
 
-	# --- MAKE FOLDER OUTS ---
-
-	# ** main folder **
-	if not os.path.exists(folder_out):
-		os.makedirs(folder_out)
-		
-
-	# ** mean_disp_param_folder_out folder **
-	mean_disp_param_folder_out = "%s/mean_disp_param" % folder_out
-	if not os.path.exists(mean_disp_param_folder_out):
-		os.makedirs(mean_disp_param_folder_out)
 
 
 
 
-	# --- GET THE CONFIG DICT AND WRITE ---
+	# --- MAKE FOLDER OUT ---
+	if not os.path.exists(alg_step_subfolder):
+		os.makedirs(alg_step_subfolder)
 
-	# ** get **
+
+
+	# --- SET CONFIG DICT ---
 	config_dict = locals()
-	del config_dict['adata']
-
-	# ** write **
-	config_path = "%s/config.txt" % folder_out
-	with open(config_path, "wb") as file_obj:
-		file_obj.write(str(config_dict).encode())
-
+	keys_to_drop = ['hv_adata', 'log_mean_log_disp_coef']
+	for key in keys_to_drop:
+		del config_dict[key]
 
 
 	# --- MAKE THE LR DICT ---
@@ -117,6 +109,7 @@ def run(adata,
 		'Q_prob_log_alpha' : Q_prob_log_alpha_lr,
 		'Q_prob_log_beta' : Q_prob_log_beta_lr
 	}
+
 
 
 	# --- TURN ON / OFF TEST MODE ---
@@ -137,51 +130,32 @@ def run(adata,
 
 
 
-	# --- MAKE AN INITIAL GUESS ABOUT PARAMS FOR MEAN / DISPERSION RELATIONSHIP ---
 
+	# --- GET HIGHLY CONFIDENT CELLS ---
 
-	# ** get the log mean - log disp polynomial coefficients **
-	if use_nb:
-		print("--- ESTIMATING GLOBAL MEAN-DISPERSION RELATIONSHIP FOR NEGATIVE BINOMIAL ---")
-		log_mean_log_disp_coef = estimate_mean_disp_relationship.estimate_mean_disp_relationship(adata, mean_disp_init_coef, mean_disp_log10_prop_bin_marks, mean_disp_max_num_genes_per_bin,min_log_disp=-10,max_log_disp=10)
+	print("--- IDENTIFYING HIGHLY CONFIDENT CELLS BASED ON CELL PHASE POSTERIOR ---")
+
+	if confident_cell_interval_size_threshold is None:
+		confident_cell_indices = np.arange(0,hv_adata.shape[0])
 	else:
-		log_mean_log_disp_coef = np.array([1e-1000]) # i.e. use Poisson (mean equals the variance; if log_disp = 1e-1000, np.exp(log_disp) ~ 0)
-	log_mean_log_disp_coef = torch.Tensor(log_mean_log_disp_coef)
+		# ** make the dist **
+		cell_posterior_dist = cell_posterior.ThetaPosteriorDist(opt_cycler_theta_posterior_likelihood.detach())
 
-	# ** write out **
-	mean_disp_fit_coef_fileout = '%s/log_mean_log_disp_poly_coef_0.txt' % (mean_disp_param_folder_out)
-	np.savetxt(mean_disp_fit_coef_fileout,log_mean_log_disp_coef.detach().numpy())
+		# ** compute the confidence intervals **
+		cell_confidence_intervals = cell_posterior_dist.compute_confidence_interval(confidence=0.90)
+		cell_confidence_intervals = (np.sum(cell_confidence_intervals,axis=1) / cell_posterior_dist.num_grid_points) * 24.0
 
-
-
-	# --- RESTRICT ADATA TO ONLY GENES WITH PROP >= MIN_GENE_PROP ---
-
-	print("--- RESTRICTING GENES BASED ON MINIMUM PROPORTION IN PSEUDOBULK ---")
-
-	if min_gene_prop is not None:
-		adata = adata[:,(adata.var['prop'] >= min_gene_prop)]
-
-	print("Adata shape after thresholding minimum proportion")
-	print(str(adata.shape))
+		# ** get confident cell indices **
+		confident_cell_indices = np.where(cell_confidence_intervals <= confident_cell_interval_size_threshold)[0]
 
 
 
 
 
-
-	# --- SET ALG RESULT HEAD FOLDER  ---
-
-	alg_result_head_folder = "%s/harmonic_regression_results" % folder_out
-	if not os.path.exists(alg_result_head_folder):
-		os.makedirs(alg_result_head_folder)
-	
+	# --- RESTRICT ADATA TO CONFIDENT CELLS ---
+	hv_adata = hv_adata[confident_cell_indices,:]
 
 
-
-	# --- GET HV ADATA ---
-
-
-	hv_adata = adata
 
 
 
@@ -189,14 +163,14 @@ def run(adata,
 
 	# --- BURNING IN HVG PARAMETERS WHEN Q FIXED TO 1 ---
 
-	print("--- BURNING IN HARMONIC PARAMETERS ---")
+	print("--- BURNING IN HARMONIC PARAMETERS FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
 
 
 	# ** prep **
-	hv_gene_X, log_L, hv_gene_param_dict, hv_gene_prior_dict = prep.harmonic_regression_prep(hv_adata,**config_dict)
-	hv_gene_prior_dict['prior_Q_prob_alpha'] = 999.0 * torch.ones(hv_adata.shape[1]) # just for this, set the HV Q prob prior to non-informative
+	hv_gene_X, log_L, hv_gene_param_dict, cell_prior_dict, hv_gene_prior_dict = prep.unsupervised_prep(hv_adata,**config_dict)
+	hv_gene_prior_dict['prior_Q_prob_alpha'] = 999.0 * torch.ones(hv_adata.shape[1])
 	hv_gene_prior_dict['prior_Q_prob_beta'] = torch.ones(hv_adata.shape[1])
-	hv_gene_param_dict['Q_prob_log_alpha'] = torch.nn.Parameter(torch.log(999.0 * torch.ones(hv_adata.shape[1])).detach(),requires_grad=True) # fit Q params to values that yield Q =~ 1
+	hv_gene_param_dict['Q_prob_log_alpha'] = torch.nn.Parameter(torch.log(999.0 * torch.ones(hv_adata.shape[1])).detach(),requires_grad=True)
 	hv_gene_param_dict['Q_prob_log_beta'] = torch.nn.Parameter(torch.log(torch.ones(hv_adata.shape[1])).detach(),requires_grad=True)
 	gene_param_grad_dict = {
 		"mu_loc" : True, "mu_log_scale" : True,
@@ -207,16 +181,17 @@ def run(adata,
 
 
 	# ** run **
-	if num_gene_samples > 1:
+	if num_harmonic_est_gene_samples > 1:
 		_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
 			log_L = log_L, 
 			gene_param_dict = hv_gene_param_dict, 
 			gene_prior_dict = hv_gene_prior_dict,
-			folder_out = "%s/harmonic_preinference_burn_in" % (alg_result_head_folder),  # '%s/hv_preinference' % folder_out,
+			folder_out = "%s/de_novo_cycler_id_preinference_burn_in" % (alg_step_subfolder),  # '%s/hv_preinference' % folder_out,
 			learning_rate_dict = vi_gene_param_lr_dict,
-			theta = torch.Tensor(adata.obs['theta']), # opt_clock_theta_posterior_likelihood
+			theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
 			gene_param_grad_dict = gene_param_grad_dict,
-			max_iters = vi_max_epochs,
+			max_iters = vi_max_epochs, 
+			num_cell_samples = num_harmonic_est_cell_samples,
 			num_gene_samples = 1,
 			max_amp = max_amp,
 			min_amp = min_amp,
@@ -244,10 +219,10 @@ def run(adata,
 
 
 
-	# --- FIT GENE PARAMETERS WHEN Q FIXED TO 1 ---
 
-	print("--- FITTING HARMONIC PARAMETERS ASSUMING Q = 1 ---")
+	# --- FIT HVG PARAMETERS WHEN Q FIXED TO 1 ---
 
+	print("--- FITTING HARMONIC PARAMETERS FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
 
 
 
@@ -256,12 +231,13 @@ def run(adata,
 		log_L = log_L, 
 		gene_param_dict = opt_hv_gene_param_dict_unprepped, # hv_gene_param_dict, 
 		gene_prior_dict = hv_gene_prior_dict,
-		folder_out = "%s/harmonic_preinference" % (alg_result_head_folder),  # '%s/hv_preinference' % folder_out,
+		folder_out = "%s/de_novo_cycler_id_preinference" % (alg_step_subfolder),  # '%s/hv_preinference' % folder_out,
 		learning_rate_dict = vi_gene_param_lr_dict,
-		theta = torch.Tensor(adata.obs['theta']),
+		theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
 		gene_param_grad_dict = gene_param_grad_dict,
 		max_iters = vi_max_epochs, 
-		num_gene_samples = num_gene_samples,
+		num_cell_samples = num_harmonic_est_cell_samples,
+		num_gene_samples = num_harmonic_est_gene_samples,
 		max_amp = max_amp,
 		min_amp = min_amp,
 		print_epoch_loss = vi_print_epoch_loss,
@@ -275,20 +251,18 @@ def run(adata,
 		pin_memory = vi_pin_memory,
 		use_nb = use_nb,
 		log_mean_log_disp_coef = log_mean_log_disp_coef,
-		batch_indicator_mat = batch_indicator_mat,
+		batch_indicator_mat = None,
 		detect_anomaly = detect_anomaly)
 
 
 
+	# --- BURN IN Q FOR HVG ---
 
-
-	# --- BURN IN Q ---
-
-	print("--- BURNING IN CYCLING INDICATOR PARAMETER ---")
+	print("--- BURNING IN CYCLING INDICATOR PARAMETER FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
 
 
 	# ** prep **
-	hv_gene_X, log_L, _, hv_gene_prior_dict = prep.harmonic_regression_prep(hv_adata,**config_dict)
+	hv_gene_X, log_L, _, _, hv_gene_prior_dict = prep.unsupervised_prep(hv_adata,**config_dict)
 	gene_param_grad_dict = {
 		"mu_loc" : False, "mu_log_scale" : False,
 		"phi_euclid_loc" : False, "phi_log_scale" : False,
@@ -299,16 +273,17 @@ def run(adata,
 
 
 	# ** run **
-	if num_gene_samples > 1:
+	if num_harmonic_est_gene_samples > 1:
 		_, opt_hv_gene_param_dict_unprepped = gene_fit.gene_fit(gene_X = hv_gene_X, 
 			log_L = log_L, 
 			gene_param_dict = opt_hv_gene_param_dict_unprepped, 
 			gene_prior_dict = hv_gene_prior_dict,
-			folder_out = "%s/harmonic_inference_burn_in" % (alg_result_head_folder), # '%s/hv_preinference_Q_fit' % folder_out,
+			folder_out = "%s/de_novo_cycler_id_burn_in" % (alg_step_subfolder), # '%s/hv_preinference_Q_fit' % folder_out,
 			learning_rate_dict = vi_gene_param_lr_dict,
-			theta = torch.Tensor(adata.obs['theta']), # opt_clock_theta_posterior_likelihood
+			theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
 			gene_param_grad_dict = gene_param_grad_dict,
 			max_iters = vi_max_epochs, 
+			num_cell_samples = num_harmonic_est_cell_samples,
 			num_gene_samples = 1,
 			max_amp = max_amp,
 			min_amp = min_amp,
@@ -333,9 +308,19 @@ def run(adata,
 
 
 
-	# --- FIT Q ---
+	# --- FIT Q FOR HVG ---
 
-	print("--- FITTING Q ---")
+	print("--- FITTING CYCLING INDICATOR PARAMETER FOR HIGHLY VARIABLE GENES THAT ARE NON-CYCLERS ---")
+
+
+	# ** prep **
+	hv_gene_X, log_L, _, _, hv_gene_prior_dict = prep.unsupervised_prep(hv_adata,**config_dict)
+	gene_param_grad_dict = {
+		"mu_loc" : False, "mu_log_scale" : False,
+		"phi_euclid_loc" : False, "phi_log_scale" : False,
+		"A_log_alpha" : False, "A_log_beta" : False,
+		"Q_prob_log_alpha" : True, "Q_prob_log_beta" : True,
+	}
 
 
 
@@ -344,12 +329,13 @@ def run(adata,
 		log_L = log_L, 
 		gene_param_dict = opt_hv_gene_param_dict_unprepped, 
 		gene_prior_dict = hv_gene_prior_dict,
-		folder_out = "%s/harmonic_inference" % (alg_result_head_folder), # '%s/hv_preinference_Q_fit' % folder_out,
+		folder_out = "%s/de_novo_cycler_id" % (alg_step_subfolder), # '%s/hv_preinference_Q_fit' % folder_out,
 		learning_rate_dict = vi_gene_param_lr_dict,
-		theta = torch.Tensor(adata.obs['theta']),
+		theta_posterior_likelihood = opt_cycler_theta_posterior_likelihood[confident_cell_indices,:], # opt_clock_theta_posterior_likelihood
 		gene_param_grad_dict = gene_param_grad_dict,
-		max_iters = vi_max_epochs,
-		num_gene_samples = num_gene_samples,
+		max_iters = vi_max_epochs, 
+		num_cell_samples = num_harmonic_est_cell_samples,
+		num_gene_samples = num_harmonic_est_gene_samples,
 		max_amp = max_amp,
 		min_amp = min_amp,
 		print_epoch_loss = vi_print_epoch_loss,
@@ -363,7 +349,7 @@ def run(adata,
 		pin_memory = vi_pin_memory,
 		use_nb = use_nb,
 		log_mean_log_disp_coef = log_mean_log_disp_coef,
-		batch_indicator_mat = batch_indicator_mat,
+		batch_indicator_mat = None,
 		detect_anomaly = detect_anomaly)
 
 
@@ -371,9 +357,9 @@ def run(adata,
 
 
 
-	# --- IDENTIFY CYCLING GENES ---
+	# --- IDENTIFY THE HVG THAT ARE HIGHLY CONFIDENT CYCLERS ---
 
-	print("--- IDENTIFYING CYCLING GENES ---")
+	print("--- IDENTIFYING DE NOVO CYCLERS ---")
 
 
 	# ** compute the pearson residuals of the amplitude loc's (based on mesor - amplitude relationship across all genes) **
@@ -409,7 +395,7 @@ def run(adata,
 
 
 	# ** write out gene param DF **
-	hv_gene_param_df_fileout = '%s/harmonic_inference/gene_prior_and_posterior.tsv' % alg_result_head_folder # % (folder_out)
+	hv_gene_param_df_fileout = '%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % alg_step_subfolder # % (folder_out)
 	hv_gene_param_df.to_csv(hv_gene_param_df_fileout,sep='\t')
 
 
@@ -417,31 +403,10 @@ def run(adata,
 	# ** get cycler genes based on frac_pos_cycler_samples and A_loc_pearson_residual_threshold **
 	confident_hv_gene_param_df = hv_gene_param_df[(hv_gene_param_df['frac_pos_cycler_samples'] >= frac_pos_cycler_samples_threshold) & (hv_gene_param_df['A_loc_pearson_residual'] >= A_loc_pearson_residual_threshold)]
 	new_de_novo_cycler_genes = np.array(list(confident_hv_gene_param_df.index))
-	adata.var.loc[new_de_novo_cycler_genes,'is_cycler'] = True
+	# adata.var.loc[new_de_novo_cycler_genes,'is_cycler'] = True
 		
 
-
-
-
-	print("--- SUCCESSFULLY FINISHED ---")
-
-
-
-
-
-
-if __name__ == "__main__":
-	main(sys.argv)
-
-
-
-
-
-
-
-
-
-
+	return new_de_novo_cycler_genes
 
 
 
