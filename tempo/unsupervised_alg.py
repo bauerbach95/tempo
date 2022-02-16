@@ -268,6 +268,7 @@ def run(adata,
 	algorithm_step = 0
 	prev_clock_log_evidence = None
 	alg_result_head_folder = "%s/tempo_results" % folder_out
+	alg_step_to_return = None
 	if not os.path.exists(alg_result_head_folder):
 		os.makedirs(alg_result_head_folder)
 	while True:
@@ -348,6 +349,7 @@ def run(adata,
 			prev_clock_log_evidence = clock_log_evidence
 		elif clock_log_evidence - prev_clock_log_evidence < 0:
 			print("Clock log evidence decreased from previous Tempo step. Halting algorithm.")
+			alg_step_to_return = algorithm_step - 1
 			break
 
 
@@ -398,6 +400,7 @@ def run(adata,
 
 		# if reached max number of steps, halt
 		if algorithm_step >= max_num_alg_steps:
+			alg_step_to_return = algorithm_step
 			break
 
 
@@ -407,7 +410,30 @@ def run(adata,
 	print("--- SUCCESSFULLY FINISHED ---")
 
 
+	# --- WRITE OPTIMAL RESULTS FROM alg_step_to_return ---
 
+	# paths in
+	opt_cell_posterior_df_path = '%s/%s/cell_phase_estimation/cell_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
+	opt_cycler_gene_df_path = '%s/%s/cell_phase_estimation/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
+	opt_flat_gene_df_path = '%s/%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
+
+	# data
+	opt_cell_posterior_df = pd.read_table(opt_cell_posterior_df_path,sep='\t',index_col='barcode')
+	opt_cycler_gene_df = pd.read_table(opt_cycler_gene_df_path,sep='\t',index_col='gene')
+	opt_flat_gene_df = pd.read_table(opt_flat_gene_df_path,sep='\t',index_col='gene')
+
+	# paths out
+	opt_folder_out = '%s/opt' % alg_result_head_folder
+	if not os.path.exists(opt_folder_out):
+		os.makedirs(opt_folder_out)
+	opt_cell_posterior_df_path_out = '%s/cell_posterior.tsv' % opt_folder_out
+	opt_cycler_gene_df_path_out = '%s/cycler_gene_prior_and_posterior.tsv' % opt_folder_out
+	opt_flat_gene_df_path_out = '%s/flat_gene_prior_and_posterior.tsv' % opt_folder_out
+
+	# write
+	opt_cell_posterior_df.write(opt_cell_posterior_df_path_out,sep='\t')
+	opt_cycler_gene_df.write(opt_cycler_gene_df_path_out,sep='\t')
+	opt_flat_gene_df.write(opt_flat_gene_df_path_out,sep='\t')
 
 
 
