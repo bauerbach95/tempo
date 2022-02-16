@@ -41,6 +41,7 @@ data/yan_neuron1_clock_acrophase_prior.csv
 data/yan_neuron1_core_clock_genes.txt
 data/yan_neuron1_cycler_acrophase_prior.csv
 data/yan_neuron1_cycler_and_clock_acrophase_prior.csv
+dist/tempo-0.0.1.dev0-py3.8.egg
 tempo/.DS_Store
 tempo/__init__.py
 tempo/cell_posterior.py
@@ -62,7 +63,6 @@ tempo/params_to_df.py
 tempo/prep.py
 tempo/run_tempo.py
 tempo/unsupervised_alg.py
-tempo/unsupervised_alg_old.py
 tempo/utils.py
 tempo.egg-info/PKG-INFO
 tempo.egg-info/SOURCES.txt

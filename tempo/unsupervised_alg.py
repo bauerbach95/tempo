@@ -412,15 +412,7 @@ def run(adata,
 
 	# --- WRITE OPTIMAL RESULTS FROM alg_step_to_return ---
 
-	# paths in
-	opt_cell_posterior_df_path = '%s/%s/cell_phase_estimation/cell_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
-	opt_cycler_gene_df_path = '%s/%s/cell_phase_estimation/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
-	opt_flat_gene_df_path = '%s/%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
 
-	# data
-	opt_cell_posterior_df = pd.read_table(opt_cell_posterior_df_path,sep='\t',index_col='barcode')
-	opt_cycler_gene_df = pd.read_table(opt_cycler_gene_df_path,sep='\t',index_col='gene')
-	opt_flat_gene_df = pd.read_table(opt_flat_gene_df_path,sep='\t',index_col='gene')
 
 	# paths out
 	opt_folder_out = '%s/opt' % alg_result_head_folder
@@ -430,10 +422,23 @@ def run(adata,
 	opt_cycler_gene_df_path_out = '%s/cycler_gene_prior_and_posterior.tsv' % opt_folder_out
 	opt_flat_gene_df_path_out = '%s/flat_gene_prior_and_posterior.tsv' % opt_folder_out
 
-	# write
+	# read in cell phase data and write out
+	opt_cell_posterior_df_path = '%s/%s/cell_phase_estimation/cell_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
+	opt_cell_posterior_df = pd.read_table(opt_cell_posterior_df_path,sep='\t',index_col='barcode')
 	opt_cell_posterior_df.write(opt_cell_posterior_df_path_out,sep='\t')
+
+	# read in cycler gene data and write
+	opt_cycler_gene_df_path = '%s/%s/cell_phase_estimation/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
+	opt_cycler_gene_df = pd.read_table(opt_cycler_gene_df_path,sep='\t',index_col='gene')
 	opt_cycler_gene_df.write(opt_cycler_gene_df_path_out,sep='\t')
-	opt_flat_gene_df.write(opt_flat_gene_df_path_out,sep='\t')
+
+	# read in flat gene data and write
+	opt_flat_gene_df_path = '%s/%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
+	try:
+		opt_flat_gene_df = pd.read_table(opt_flat_gene_df_path,sep='\t',index_col='gene')
+		opt_flat_gene_df.write(opt_flat_gene_df_path_out,sep='\t')
+	except Exception as e:
+		print("Error writing out optimal flat gene df: %s" % str(e))
 
 
 
