@@ -22,7 +22,7 @@ from . import estimate_mean_disp_relationship
 from . import generate_null_dist
 from . import objective_functions
 from . import clock_gene_posterior
-
+import random
 
 
 def run(adata,
@@ -61,8 +61,8 @@ def run(adata,
 	mu_log_scale_lr = 1e-1,
 	A_log_alpha_lr = 1e-1,
 	A_log_beta_lr = 1e-1,
-	phi_euclid_loc_lr = 5.0,
-	phi_log_scale_lr = 1.0,
+	phi_euclid_loc_lr = 1e-1,
+	phi_log_scale_lr = 1e-1,
 	Q_prob_log_alpha_lr = 1e-1,
 	Q_prob_log_beta_lr = 1e-1,
 	num_phase_grid_points = 24,
@@ -90,6 +90,7 @@ def run(adata,
 	max_num_alg_steps=3,
 	opt_phase_est_gene_params = True,
 	init_variational_dist_to_prior = False,
+	log10_bf_tempo_vs_null_threshold = np.log10(1.5),
 	**kwargs):
 
 
@@ -330,6 +331,7 @@ def run(adata,
 		cycler_gene_prior_dict['prior_Q_prob_alpha'][non_clock_indices] = torch.ones((non_clock_indices.shape[0])) # set the non-clock cycler Q priors to flat
 		# cycler_gene_prior_dict['prior_Q_prob_alpha'][non_clock_indices] = 3 * torch.ones((non_clock_indices.shape[0])) # set the non-clock cycler Q priors to flat
 		cycler_gene_prior_dict['prior_Q_prob_beta'][non_clock_indices] = torch.ones((non_clock_indices.shape[0]))
+
 
 
 		# ** get prior theta euclid dist **
