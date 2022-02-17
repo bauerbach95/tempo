@@ -400,7 +400,7 @@ def run(adata,
 
 		# if reached max number of steps, halt
 		if algorithm_step >= max_num_alg_steps:
-			alg_step_to_return = algorithm_step
+			alg_step_to_return = algorithm_step - 1
 			break
 
 
