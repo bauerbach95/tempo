@@ -78,9 +78,9 @@ def run(adata,
 	Q_prob_log_alpha_lr = 1e-1,
 	Q_prob_log_beta_lr = 1e-1,
 	num_phase_grid_points = 24,
-	num_phase_est_cell_samples = 10,
-	num_phase_est_gene_samples = 10,
-	num_harmonic_est_cell_samples = 5,
+	num_phase_est_cell_samples = 3,
+	num_phase_est_gene_samples = 3,
+	num_harmonic_est_cell_samples = 3,
 	num_harmonic_est_gene_samples = 3,
 	vi_max_epochs = 300,
 	vi_print_epoch_loss = True,
@@ -269,6 +269,7 @@ def run(adata,
 	prev_clock_log_evidence = None
 	alg_result_head_folder = "%s/tempo_results" % folder_out
 	alg_step_to_return = None
+	better_than_random = False
 	if not os.path.exists(alg_result_head_folder):
 		os.makedirs(alg_result_head_folder)
 	while True:
@@ -340,8 +341,13 @@ def run(adata,
 		# ** halt algorithm progression if not sufficiently better than random **
 		print("Tempo vs. null clock evidence log10 bayes factor: %s" % log10_bf_tempo_vs_null)
 		if log10_bf_tempo_vs_null < log10_bf_tempo_vs_null_threshold:
-			print("Clock evidence not sufficiently better than random. Halting algorithm.")
+			print("Clock evidence not sufficiently better than random. Halting algorithm.")	
 			break
+
+
+		# ** flip indicator if we can do better than random **
+		if algorithm_step == 0 and log10_bf_tempo_vs_null >= log10_bf_tempo_vs_null_threshold:
+			better_than_random = True
 
 		
 		# ** halt algorithm progression if clock evidence worsens **
@@ -412,33 +418,33 @@ def run(adata,
 
 	# --- WRITE OPTIMAL RESULTS FROM alg_step_to_return ---
 
+	if better_than_random:
 
+		# paths out
+		opt_folder_out = '%s/opt' % alg_result_head_folder
+		if not os.path.exists(opt_folder_out):
+			os.makedirs(opt_folder_out)
+		opt_cell_posterior_df_path_out = '%s/cell_posterior.tsv' % opt_folder_out
+		opt_cycler_gene_df_path_out = '%s/cycler_gene_prior_and_posterior.tsv' % opt_folder_out
+		opt_flat_gene_df_path_out = '%s/flat_gene_prior_and_posterior.tsv' % opt_folder_out
 
-	# paths out
-	opt_folder_out = '%s/opt' % alg_result_head_folder
-	if not os.path.exists(opt_folder_out):
-		os.makedirs(opt_folder_out)
-	opt_cell_posterior_df_path_out = '%s/cell_posterior.tsv' % opt_folder_out
-	opt_cycler_gene_df_path_out = '%s/cycler_gene_prior_and_posterior.tsv' % opt_folder_out
-	opt_flat_gene_df_path_out = '%s/flat_gene_prior_and_posterior.tsv' % opt_folder_out
+		# read in cell phase data and write out
+		opt_cell_posterior_df_path = '%s/%s/cell_phase_estimation/cell_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
+		opt_cell_posterior_df = pd.read_table(opt_cell_posterior_df_path,sep='\t',index_col='barcode')
+		opt_cell_posterior_df.to_csv(opt_cell_posterior_df_path_out,sep='\t')
 
-	# read in cell phase data and write out
-	opt_cell_posterior_df_path = '%s/%s/cell_phase_estimation/cell_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
-	opt_cell_posterior_df = pd.read_table(opt_cell_posterior_df_path,sep='\t',index_col='barcode')
-	opt_cell_posterior_df.to_csv(opt_cell_posterior_df_path_out,sep='\t')
+		# read in cycler gene data and write
+		opt_cycler_gene_df_path = '%s/%s/cell_phase_estimation/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
+		opt_cycler_gene_df = pd.read_table(opt_cycler_gene_df_path,sep='\t',index_col='gene')
+		opt_cycler_gene_df.to_csv(opt_cycler_gene_df_path_out,sep='\t')
 
-	# read in cycler gene data and write
-	opt_cycler_gene_df_path = '%s/%s/cell_phase_estimation/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
-	opt_cycler_gene_df = pd.read_table(opt_cycler_gene_df_path,sep='\t',index_col='gene')
-	opt_cycler_gene_df.to_csv(opt_cycler_gene_df_path_out,sep='\t')
-
-	# read in flat gene data and write
-	opt_flat_gene_df_path = '%s/%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
-	try:
-		opt_flat_gene_df = pd.read_table(opt_flat_gene_df_path,sep='\t',index_col='gene')
-		opt_flat_gene_df.to_csv(opt_flat_gene_df_path_out,sep='\t')
-	except Exception as e:
-		print("Error: writing out optimal flat gene df: %s" % str(e))
+		# read in flat gene data and write
+		opt_flat_gene_df_path = '%s/%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
+		try:
+			opt_flat_gene_df = pd.read_table(opt_flat_gene_df_path,sep='\t',index_col='gene')
+			opt_flat_gene_df.to_csv(opt_flat_gene_df_path_out,sep='\t')
+		except Exception as e:
+			print("Error: writing out optimal flat gene df: %s" % str(e))
 
 
 
