@@ -1,0 +1,28 @@
+channels:
+  - anaconda
+  - pytorch
+  - bioconda
+  - defaults
+  - conda-forge
+dependencies:
+  - python>=3.8
+  - anndata
+  - numpy
+  - pandas
+  - scanpy>=1.6
+  - scikit-image
+  - scikit-learn
+  - scip
+  - statsmodels
+  - torchaudio
+  - torchvision
+  - tqdm
+  - pytorch>=1.9.0
+  # - pip:
+  #   - torch>=1.9.0
+
+
+
+
+
+
