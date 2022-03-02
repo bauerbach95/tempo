@@ -2,9 +2,6 @@ import numpy as np
 import anndata
 import scipy
 import statsmodels
-import statsmodels.api as sm
-import statsmodels.formula.api as smf
-
 
 
 # --- DEFINE FN FOR GETTING MOST HIGHLY VARIABLE GENES ---
