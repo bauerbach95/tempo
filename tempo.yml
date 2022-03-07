@@ -12,7 +12,7 @@ dependencies:
   - scanpy>=1.6
   - scikit-image
   - scikit-learn
-  - scip
+  - scipy
   - statsmodels
   - torchaudio
   - torchvision
