@@ -29,14 +29,6 @@ import random
 import gc
 
 
-# bulk_cycler_info_path = '/users/benauerbach/dropbox/tempo_paper/figures/sim_data_figure_N_500_mean_lib_size_20000/experiment_0/clock_acrophase_prior.csv'
-# core_clock_gene_path = '/users/benauerbach/dropbox/tempo_paper/figures/sim_data_figure_N_500_mean_lib_size_20000/experiment_0/core_clock_genes.txt'
-
-
-
-# unsupervised_alg_2.run(adata, folder_out, bulk_cycler_info_path, core_clock_gene_path, 'Gene_0')
-
-
 def run(adata,
 	folder_out,
 	bulk_cycler_info_path,
