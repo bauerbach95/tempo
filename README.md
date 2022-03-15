@@ -18,9 +18,7 @@ python run_test.py
 To deactivate the environment:
 conda deactivate
 
-
-
-
+Tutorials on how to run Tempo can be viewed in the tutorial folder of the repository.
 
 
 
