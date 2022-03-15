@@ -6,6 +6,7 @@ import torch
 import pandas as pd
 import numpy as np
 import power_spherical
+import hyperspherical_vae
 
 
 # tempo imports
@@ -62,7 +63,7 @@ def compute_cell_posterior(gene_X, log_L, num_grid_points, prior_theta_euclid_di
 	
 	if prior_theta_euclid_dist is not None:
 		# print("NEED TO CHANGE THIS TO HANDLE EUCLID GRID")
-		if prior_theta_euclid_dist.__class__ == power_spherical.distributions.HypersphericalUniform or prior_theta_euclid_dist.__class__ == power_spherical.distributions.PowerSpherical:
+		if prior_theta_euclid_dist.__class__ == power_spherical.distributions.HypersphericalUniform or prior_theta_euclid_dist.__class__ == hyperspherical_vae.distributions.von_mises_fisher.VonMisesFisher:
 			prior_theta_grid_prob = prior_theta_euclid_dist.log_prob(theta_euclid_grid.unsqueeze(1))
 		elif prior_theta_euclid_dist.__class__ == cell_posterior.ThetaPosteriorDist:
 			prior_theta_grid_prob = prior_theta_euclid_dist.log_prob(theta_grid.reshape(-1,1))

@@ -398,9 +398,15 @@ def passes_credible_interval_amp_threshold(expected_molecule_dif, L, mu_samples,
 # interval specified is in radains [0,pi]
 def powerspherical_95_radian_interval_to_concentration(interval):
 
+
 	# interval must be from [0,pi]
-	if interval > np.pi or interval < 0:
-		raise Exception("Error: interval cannot be larger than pi or smaller than zero.")
+	# if interval > np.pi or interval < 0:
+	if isinstance(interval,float):
+		if interval > np.pi or interval < 0:
+			raise Exception("Error: 95 interval cannot be larger than pi or smaller than 1e-3.")
+	elif isinstance(interval, np.ndarray):
+		if (len(interval[interval > np.pi]) > 0) or (len(interval[interval < 1e-3]) > 0):
+			raise Exception("Error: 95 interval cannot be larger than pi or smaller than 1e-3.")
 
 	# scale from 0 to 1
 	interval = interval / np.pi
@@ -557,10 +563,6 @@ def init_hv_adata_variational_and_prior_dist_from_prev_round(hv_adata, previous_
 	
 	# get the current_non_cycler_gene_param_df
 	current_non_cycler_gene_param_df = previous_de_novo_cycler_gene_param_df.loc[np.array(hv_adata.var_names)]
-
-	# # filter cols relevant for initializing variational parameters
-	# cols_to_keep = list(filter(lambda x: "prior" not in x, current_non_cycler_gene_param_df.columns)) # drop prior columns
-	# current_non_cycler_gene_param_df = current_non_cycler_gene_param_df[cols_to_keep]
 
 
 	# add parameters to adata to initialize cycler genes 

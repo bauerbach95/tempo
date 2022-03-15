@@ -29,10 +29,81 @@ import random
 import gc
 
 
+
+
+# - Description: Runs Tempo algorithm for unsupervised phase inference
+# - Parameters:
+#		- adata ([num_cells x num_genes] AnnData object): gene count matrix 
+#		- folder_out (str): path for results folder
+#		- gene_acrophase_prior_path (str): path to gene acrophase prior file, which is a CSV
+#		- core_clock_gene_path (str): path to file for core clock genes, which is a plain text file listing the names of each core clock gene on each line
+#		- cell_phase_prior_path (str): path to cell phase prior file, which is a CSV
+#		- reference_gene (str): name of reference core clock gene
+#		- min_gene_prop (float; 0 to 1): minimum proportion of transcripts in pseudobulk that the gene must have
+#		- min_amp (float, positive real): minimum amplitude of genes' amplitudes
+#		- max_amp (float, positive real): maximimum amplitude of genes' amplitudes
+# 		- init_mesor_scale_val (float, positive real): value to initialize variational mesor scale for all genes
+# 		- prior_mesor_scale_val (float, positive real): value to set prior mesor scale for all genes
+# 		- init_amp_loc_val (float, positive real lying in [min_amp,max_amp]): value to initialize the location of the variational amplitude for all genes
+# 		- init_amp_scale_val (float, positive real): number of pseudotrials of the Beta distributoin to initialize the variational amplitude to. Larger values indicate more certainty.
+# 		- prior_amp_alpha_val (float, positive real): alpha values of Beta distribution for prior amplitude
+# 		- prior_amp_beta_val (float, positive real): beta values of Beta distribution for prior amplitude
+# 		- known_cycler_init_shift_95_interval (float in [0,pi]): 95% interval to initialize the acrophase distribution scale, specifically for genes that are known cycling genes
+# 		- unknown_cycler_init_shift_95_interval (float in [0,pi]): 95% interval to initialize the acrophase distribution scale, specifically for genes that are not known cycling genes
+# 		- known_cycler_prior_shift_95_interval: 95% interval to set acrophase prior distribution scale, specifically for genes that are known cycling genes; note: values in gene_acrophase_prior_path take precedence
+# 		- init_clock_Q_prob_alpha (float, positive real): alpha value of Beta distribution for variational gamma (probability gene has non-zero amplitude), specifically for user-supplied clock genes
+# 		- init_clock_Q_prob_beta (float, positive real): beta value of Beta distribution for variational gamma (probability gene has non-zero amplitude), specifically for user-supplied clock genes
+# 		- init_non_clock_Q_prob_alpha (float, positive real): alpha value of Beta distribution for variational gamma (probability gene has non-zero amplitude), specifically for non-clock genes
+# 		- init_non_clock_Q_prob_beta (float, positive real): beta value of Beta distribution for variational gamma (probability gene has non-zero amplitude), specifically for non-clock genes
+# 		- prior_clock_Q_prob_alpha (float, positive real): alpha value of Beta distribution for prior gamma (probability gene has non-zero amplitude), specifically for user-supplied clock genes
+# 		- prior_clock_Q_prob_beta (float, positive real): beta value of Beta distribution for prior gamma (probability gene has non-zero amplitude), specifically for user-supplied clock genes
+# 		- prior_non_clock_Q_prob_alpha (float, positive real): alpha value of Beta distribution for prior gamma (probability gene has non-zero amplitude), specifically for non-clock genes
+# 		- prior_non_clock_Q_prob_beta (float, positive real): beta value of Beta distribution for prior gamma (probability gene has non-zero amplitude), specifically for non-clock genes
+# 		- use_noninformative_phase_prior (boolean): if true, all cell phase priors are set to noninformative priors. however, if true, note cell phase priors specified by cell_phase_prior_path take precedent. if false, user must supply cell_phase_prior_path.
+# 		- use_nb (boolean): if true, uses negative binomial likelihood model for gene transcript counts. if false, uses poisson.
+# 		- mean_disp_init_coef (list of floats): initial values to set the log transcript proportion - log dispersion coefficients to (zeta parameterizing function g in the paper supplement) when use_nb is true, since the coefficients are fit using a gradient optimizer
+# 		- est_mean_disp_relationship (boolean): if true, optimizes the log transcript proportion - log dispersion coefficients; if false, directly treats the user-supplied coefficients in mean_disp_init_coef as zeta
+# 		- mean_disp_log10_prop_bin_marks (list of log10 transformed fractions / proportions): where to set bins of genes' log10 proportions to sample genes to estimate zeta (parameters of the globa log proportion - log dispersion relationship )
+# 		- mean_disp_max_num_genes_per_bin (int, positive): maximum number of genes to sample per bin when estimating zeta (parameters of the globa log proportion - log dispersion relationship )
+# 		- hv_std_residual_threshold (float): threshold of pearson residuals of genes' variances vs. expected variances (given their means) to restrict highly variable genes to consider as postential cycling genes by the algorithm. 
+# 		- mu_loc_lr (positive float):  learning rate for variational mesor loc parameter
+# 		- mu_log_scale_lr (positive float):  learning rate for variational mesor scale parameter
+# 		- A_log_alpha_lr (positive float):  learning rate for variational amplitude alpha parameter
+# 		- A_log_beta_lr (positive float):  learning rate for variational amplitude beta parameter
+# 		- phi_euclid_loc_lr (positive float):  learning rate for variational acrophase loc parameter
+# 		- phi_log_scale_lr (positive float):  learning rate for variational acrophase scale parameter
+# 		- Q_prob_log_alpha_lr (positive float):  learning rate for variational non-zero amplitude probability loc parameter
+# 		- Q_prob_log_beta_lr (positive float):  learning rate for variational non-zero amplitude probability scale parameter
+# 		- num_phase_grid_points (positive int): number of grid points to use to approximate the conditional posterior cell phase distribution
+# 		- num_phase_est_cell_samples (positive int): number of monte carlo samples of the cell phases to use to compute the ELBO expectation term when estimates cell phase (step 1 of the algorithm) 
+# 		- num_phase_est_gene_samples (positive int): number of monte carlo samples of the gene parameters to use to compute the ELBO expectation term when estimates cell phase (step 1 of the algorithm) 
+# 		- num_harmonic_est_cell_samples (positive int): number of monte carlo samples of the cell phases to use when fitting gene parameters of non-cycling genes in step 2 of the algorithm
+# 		- num_harmonic_est_gene_samples (positive int): number of monte carlo samples of the gene parameters to use to compute the ELBO expectation term when fitting gene parameters of non-cycling genes in step 2 of the algorithm 
+# 		- vi_max_epochs (positive int): maximum number of epochs used to optimize parameters (for either step 1 or 2 of the algorithm)
+# 		- vi_print_epoch_loss (boolean): if true, prints the ELBO at each epoch for each step of the algorithm
+# 		- vi_improvement_window (int): size of the window of epochs to compare ELBO progress to (i.e. for vi_improvement_window = 10, the mean ELBO in the last 10 epochs is compared to the previous non-overlapping 10 epoch window)
+# 		- vi_convergence_criterion (positive float): threshold improvement of current epoch window's mean ELBO to previous epoch window's mean ELBO at which to say the algorithm has converged
+# 		- vi_lr_scheduler_patience (positive int): number of epochs of the ELBO getting worse before the scheduler decreases the learning rate
+# 		- vi_lr_scheduler_factor (positive float): the multiplicative factor to apply to the current learning rate if the scheduler has "run out of patience"; values < 1 will lead to a decreased learning rate
+# 		- vi_batch_size (positive int): cell batch size to complete the objective function
+# 		- test_mode (boolean): if true, uses pytorch profilers which can slow down computation
+# 		- use_clock_input_only (boolean): if true, algorithm only uses the core clock genes to estimate cell phase (i.e. it only runs Step 1 of the algorithm using the core clock genes, and then the algorithm halts.)
+# 		- use_clock_output_only (boolean): if true, the algorithm only uses the core clock genes to compute the expectation of the ELBO in Step 1
+# 		- frac_pos_cycler_samples_threshold (float, [0,1]): threshold for the MAP of a gene's non-zero amplitude probability to call them a de novo cycler
+# 		- A_loc_pearson_residual_threshold (float): threshold for the difference between a gene's MAP amplitude and expected amplitude (given its mesor) reported in terms of a pearson residual in order to call the gene a de novo cyceler; larger values mean a stricter threshold
+# 		- confident_cell_interval_size_threshold (float in [0 to 24]): threshold for a cells' 95% posterior interval for the cell to be considered when computing the expectation of the ELBO in Step 2 (to identify de novo cyclers); this can be used to improve computational efficiency, since cells with high uncertainty will contribute little information to the estimation of gene parameters
+# 		- max_num_alg_steps (int): maximum number of times to run Steps 1 and 2 of the algorithm
+# 		- opt_phase_est_gene_params (boolean): if False, does not optimize the variational gene distributions in step 1 -- the variational gene distributions are set to the priors, and Step 1 uses these and the observed counts to compute the conditional posterior of the cell phases
+# 		- init_variational_dist_to_prior (boolean): if True, always sets the gene variational distributions to prior distributions at initialization of Steps 1 and 2. 
+# 		- log10_bf_tempo_vs_null_threshold (positive float): threshold of the log10 bayes factor comparing Tempo's core clock evidence (from step 1) to random core clock evidence; if the bayes factor does not exceed this threshold, the algorithm halts
+
+
+
 def run(adata,
 	folder_out,
-	bulk_cycler_info_path,
+	gene_acrophase_prior_path,
 	core_clock_gene_path,
+	cell_phase_prior_path = None,
 	reference_gene = 'Arntl',
 	min_gene_prop = 1e-5,
 	min_amp = 0.0, # ** prep parameters **
@@ -84,8 +155,6 @@ def run(adata,
 	vi_num_workers = 0,
 	vi_pin_memory = False,
 	test_mode = False,
-	null_percentile_threshold = 90.0,
-	num_null_shuffles = 5,
 	use_clock_input_only = False,
 	use_clock_output_only = True,
 	frac_pos_cycler_samples_threshold = 0.8,
@@ -98,7 +167,8 @@ def run(adata,
 	**kwargs):
 
 
-
+	# --- SET NUM NULL SHUFFLES TO 1 ---
+	num_null_shuffles = 1
 
 
 	# --- MAKE FOLDER OUTS ---
@@ -290,18 +360,6 @@ def run(adata,
 		if algorithm_step >= 1:
 			previous_alg_step_subfolder = "%s/%s" % (alg_result_head_folder, algorithm_step - 1)
 			cycler_adata = utils.init_cycler_adata_variational_and_prior_dist_from_prev_round(cycler_adata, previous_alg_step_subfolder, enforce_de_novo_cycler_flat_Q_prior = False)
-
-
-
-			# print("previous_alg_step_subfolder")
-			# print(previous_alg_step_subfolder)
-			# print("TEMPORARILY WRITING OUT CYCLER ADATA AT SECOND STEP")
-			# torch.save(cycler_adata,'/users/benauerbach/desktop/cycler_adata.pt')
-
-			# a=['cycler_adata', 'phase_est_folder_out', 'log_mean_log_disp_coef', 'config_dict']
-			# b=[cycler_adata, phase_est_folder_out, log_mean_log_disp_coef, config_dict]
-			# d=dict(zip(a,b))
-			# torch.save(d,'/users/benauerbach/desktop/pre_inference_dict.pt')
 
 
 		# ** estimate cell phase from clock + de novo cyclers **

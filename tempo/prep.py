@@ -151,7 +151,7 @@ def get_amp_variational_and_prior_params(adata, init_amp_loc_val = 0.4 / np.log1
 
 # variational
 def get_variational_shift_params(adata,
-	bulk_shift_df,
+	gene_acrophase_prior_df,
 	known_cycler_init_shift_95_interval = (1.0 / 12.0) * np.pi,
 	unknown_cycler_init_shift_95_interval = (3.0 / 12.0) * np.pi,
 	reference_gene = 'Arntl',
@@ -187,10 +187,10 @@ def get_variational_shift_params(adata,
 	shift_concentration = np.ones((adata.shape[1])) * unknown_cycler_shift_concentration
 
 	# update shift locs to the mean value in the reference if found
-	if bulk_shift_df is not None:
+	if gene_acrophase_prior_df is not None:
 		for i, gene in enumerate(list(adata.var_names)):
-			if gene in bulk_shift_df.index:
-				shift_loc[i] = bulk_shift_df.loc[gene]['prior_acrophase_loc']
+			if gene in gene_acrophase_prior_df.index:
+				shift_loc[i] = gene_acrophase_prior_df.loc[gene]['prior_acrophase_loc']
 				shift_concentration[i] = known_cycler_shift_concentration
 			
 
@@ -231,7 +231,7 @@ def get_variational_shift_params(adata,
 
 # prior
 def get_prior_shift_params(adata,
-	bulk_shift_df,
+	gene_acrophase_prior_df,
 	known_cycler_prior_shift_95_interval = (2.0 / 12.0) * np.pi,
 	unknown_cycler_prior_shift_95_interval = (11.99 / 12.0) * np.pi,
 	reference_gene = 'Arntl'):
@@ -268,12 +268,12 @@ def get_prior_shift_params(adata,
 	shift_concentration = np.ones((adata.shape[1])) * unknown_cycler_shift_concentration
 
 	# update shift locs to the val in the reference if found
-	if bulk_shift_df is not None:
+	if gene_acrophase_prior_df is not None:
 		for i, gene in enumerate(list(adata.var_names)):
-			if gene in bulk_shift_df.index:
-				shift_loc[i] = bulk_shift_df.loc[gene]['prior_acrophase_loc']
-				if 'prior_acrophase_95_interval' in bulk_shift_df:
-					shift_concentration[i] = utils.convert_ps_to_vmf_scale(utils.powerspherical_95_radian_interval_to_concentration(bulk_shift_df.loc[gene]['prior_acrophase_95_interval']))
+			if gene in gene_acrophase_prior_df.index:
+				shift_loc[i] = gene_acrophase_prior_df.loc[gene]['prior_acrophase_loc']
+				if 'prior_acrophase_95_interval' in gene_acrophase_prior_df:
+					shift_concentration[i] = utils.convert_ps_to_vmf_scale(utils.powerspherical_95_radian_interval_to_concentration(gene_acrophase_prior_df.loc[gene]['prior_acrophase_95_interval']))
 				else:
 					shift_concentration[i] = known_cycler_shift_concentration
 			
@@ -300,40 +300,40 @@ def get_prior_shift_params(adata,
 	return phi_euclid_loc, phi_scale
 
 
-def load_bulk_shift_reference(bulk_cycler_info_path, reference_gene = None):
+def load_gene_acrophase_prior_df(gene_acrophase_prior_path, reference_gene = None):
 
 
 
-	# --- LOAD BULK CCG REFERENCE ---
-	bulk_shift_df = pd.read_table(bulk_cycler_info_path,sep=',')
-	bulk_shift_df = bulk_shift_df.set_index("gene")
+	# --- LOAD GENE PARAM PRIOR DF ---
+	gene_acrophase_prior_df = pd.read_table(gene_acrophase_prior_path,sep=',')
+	gene_acrophase_prior_df = gene_acrophase_prior_df.set_index("gene")
 
 
 
-	# --- CHECK THAT REFERENCE GENE IN BULK REFERENCE AND UPDATE GENE SHIFTS S.T. REFERENCE GENE SHIFT = 0 ---
+	# --- CHECK THAT REFERENCE GENE IN PRIOR DF AND UPDATE GENE SHIFTS S.T. REFERENCE GENE SHIFT = 0 ---
 
-	if reference_gene not in bulk_shift_df.index:
-		print("Warning: reference gene chosen not found to be a cycler in reference bulk datasets.")
+	if reference_gene not in gene_acrophase_prior_df.index:
+		print("Warning: reference gene chosen not found to be a cycler in gene prior df.")
 
-	# ** update mean shifts in bulk reference w.r.t. the reference gene if it is found in the bulk reference **
-	if (reference_gene is not None) and (reference_gene in bulk_shift_df.index):
+	# ** update mean shifts in gene prior df  w.r.t. the reference gene **
+	if (reference_gene is not None) and (reference_gene in gene_acrophase_prior_df.index):
 
 		# ** update gene shifts s.t. reference gene has a shift of 0 by default **
 
 		# shift in terms of the reference
-		mean_reference_shift = np.array(bulk_shift_df['prior_acrophase_loc'] - bulk_shift_df['prior_acrophase_loc'].loc[reference_gene])
+		mean_reference_shift = np.array(gene_acrophase_prior_df['prior_acrophase_loc'] - gene_acrophase_prior_df['prior_acrophase_loc'].loc[reference_gene])
 
 		# restrict [0,2*np.pi]
 		mean_reference_shift[np.where(mean_reference_shift < 0)] = mean_reference_shift[np.where(mean_reference_shift < 0)] + 2 * np.pi
-		bulk_shift_df['prior_acrophase_loc'] = mean_reference_shift
+		gene_acrophase_prior_df['prior_acrophase_loc'] = mean_reference_shift
 
 	else:
 
-		# set reference shift to be the same as the mean_shift in the bulk reference
-		bulk_shift_df['prior_acrophase_loc'] = bulk_shift_df['prior_acrophase_loc']
+		# set reference shift to be the same as the mean_shift in the gene prior df
+		gene_acrophase_prior_df['prior_acrophase_loc'] = gene_acrophase_prior_df['prior_acrophase_loc']
 
 
-	return bulk_shift_df
+	return gene_acrophase_prior_df
 
 
 
@@ -345,13 +345,13 @@ def get_shift_variational_and_prior_params(adata,
 	known_cycler_prior_shift_95_interval = (2.0 / 12.0) * np.pi,
 	unknown_cycler_prior_shift_95_interval = (11.99 / 12.0) * np.pi,
 	reference_gene = 'Arntl',
-	bulk_cycler_info_path = '/Users/benauerbach/Desktop/tempo/utils/BHTC_cyclers.csv'):
+	gene_acrophase_prior_path = '/Users/benauerbach/Desktop/tempo/utils/BHTC_cyclers.csv'):
 
 
-	# ** load the bulk shift reference **
-	bulk_shift_df = None
-	if bulk_cycler_info_path is not None:
-		bulk_shift_df = load_bulk_shift_reference(bulk_cycler_info_path, reference_gene)
+	# ** load the gene acrophase prior knowledge reference **
+	gene_acrophase_prior_df = None
+	if gene_acrophase_prior_path is not None:
+		gene_acrophase_prior_df = load_gene_acrophase_prior_df(gene_acrophase_prior_path, reference_gene)
 
 
 
@@ -360,7 +360,7 @@ def get_shift_variational_and_prior_params(adata,
 		known_cycler_init_shift_95_interval = known_cycler_init_shift_95_interval,
 		unknown_cycler_init_shift_95_interval = unknown_cycler_init_shift_95_interval,
 		reference_gene = reference_gene,
-		bulk_shift_df = bulk_shift_df)
+		gene_acrophase_prior_df = gene_acrophase_prior_df)
 
 
 
@@ -369,7 +369,7 @@ def get_shift_variational_and_prior_params(adata,
 		known_cycler_prior_shift_95_interval = known_cycler_prior_shift_95_interval,
 		unknown_cycler_prior_shift_95_interval = unknown_cycler_prior_shift_95_interval,
 		reference_gene = reference_gene,
-		bulk_shift_df = bulk_shift_df)
+		gene_acrophase_prior_df = gene_acrophase_prior_df)
 
 
 	return phi_euclid_loc, phi_log_scale, prior_phi_euclid_loc, prior_phi_scale
@@ -397,11 +397,18 @@ def get_phase_variational_params(adata = None):
 
 
 # prior 
-def get_phase_prior_params(adata = None, use_noninformative_phase_prior = True):
+def get_phase_prior_params(adata = None, use_noninformative_phase_prior = True, cell_phase_prior_path = None):
 
-	
-	if use_noninformative_phase_prior:
-		uniform_angle, prior_theta_euclid_loc, prior_theta_scale = True, None, None
+
+	if cell_phase_prior_path is not None:
+		cell_phase_prior_df = pd.read_table(cell_phase_prior_path,sep=',',index_col='barcode')
+		prior_theta_euclid_loc = np.zeros((adata.shape[0],2))
+		prior_theta_euclid_loc[:,0] = np.array(cell_phase_prior_df['prior_theta_euclid_cos'])
+		prior_theta_euclid_loc[:,1] = np.array(cell_phase_prior_df['prior_theta_euclid_sin'])
+		prior_theta_scale = utils.convert_ps_to_vmf_scale(utils.powerspherical_95_radian_interval_to_concentration(np.array(cell_phase_prior_df['prior_theta_95_interval'])))
+		prior_theta_euclid_loc = torch.Tensor(prior_theta_euclid_loc)
+		prior_theta_scale = torch.Tensor(prior_theta_scale).reshape(-1,1)
+		uniform_angle = False
 	elif ('prior_theta_euclid_cos' in adata.obs.columns) and ('prior_theta_euclid_sin' in adata.obs.columns) and ('prior_theta_95_interval' in adata.obs.columns):
 		prior_theta_euclid_loc = np.zeros((adata.shape[0],2))
 		prior_theta_euclid_loc[:,0] = np.array(adata.obs['prior_theta_euclid_cos'])
@@ -410,8 +417,10 @@ def get_phase_prior_params(adata = None, use_noninformative_phase_prior = True):
 		prior_theta_euclid_loc = torch.Tensor(prior_theta_euclid_loc)
 		prior_theta_scale = torch.Tensor(prior_theta_scale).reshape(-1,1)
 		uniform_angle = False
+	elif use_noninformative_phase_prior:
+		uniform_angle, prior_theta_euclid_loc, prior_theta_scale = True, None, None
 	else:
-		print("use_noninformative_phase_prior = False, but improper cell phase prior columns specified in adata.")
+		print("use_noninformative_phase_prior = False, but cell phase prior knowledge path not specified, nor is prior knowledge specified in the adata.")
 
 
 
@@ -484,7 +493,7 @@ def get_cycler_prob_variational_and_prior_params(adata, init_clock_Q_prob_alpha,
 
 
 def unsupervised_prep(adata,
-	bulk_cycler_info_path,
+	gene_acrophase_prior_path,
 	core_clock_gene_path,
 	reference_gene = 'Arntl',
 	min_amp = 0.0,
@@ -510,6 +519,7 @@ def unsupervised_prep(adata,
 	non_clock_Q_prob_beta = 9,
 	use_noninformative_phase_prior = True,
 	min_gene_prop = 1e-5,
+	cell_phase_prior_path = None,
 	**kwargs):
 
 
@@ -547,13 +557,13 @@ def unsupervised_prep(adata,
 		unknown_cycler_init_shift_95_interval = unknown_cycler_init_shift_95_interval,
 		known_cycler_prior_shift_95_interval = known_cycler_prior_shift_95_interval,
 		reference_gene = reference_gene,
-		bulk_cycler_info_path = bulk_cycler_info_path)
+		gene_acrophase_prior_path = gene_acrophase_prior_path)
 
 
 
 
 	# --- GET PHASE VARIATIONAL PARAMETERS AND PRIOR DISTRIBUTION ---
-	prior_uniform_angle, prior_theta_euclid_loc, prior_theta_scale = get_phase_prior_params(adata = adata, use_noninformative_phase_prior = use_noninformative_phase_prior)
+	prior_uniform_angle, prior_theta_euclid_loc, prior_theta_scale = get_phase_prior_params(adata = adata, use_noninformative_phase_prior = use_noninformative_phase_prior, cell_phase_prior_path = cell_phase_prior_path)
 
 
 
@@ -646,7 +656,7 @@ def get_zero_kl_gene_param_dict_from_gene_prior_dict(gene_prior_dict):
 
 
 def harmonic_regression_prep(adata,
-	bulk_cycler_info_path,
+	gene_acrophase_prior_path,
 	reference_gene = None,
 	min_amp = 0.0,
 	max_amp = 1.5,
@@ -699,7 +709,7 @@ def harmonic_regression_prep(adata,
 		unknown_cycler_init_shift_95_interval = unknown_cycler_init_shift_95_interval,
 		known_cycler_prior_shift_95_interval = known_cycler_prior_shift_95_interval,
 		reference_gene = reference_gene,
-		bulk_cycler_info_path = bulk_cycler_info_path)
+		gene_acrophase_prior_path = gene_acrophase_prior_path)
 
 
 

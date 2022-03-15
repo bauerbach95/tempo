@@ -26,9 +26,9 @@ from . import clock_gene_posterior
 import random
 
 
-# adata, opt_cycler_theta_posterior_likelihood, algorithm_step, alg_result_head_folder, config_dict
+
 def run(hv_adata, opt_cycler_theta_posterior_likelihood, alg_step_subfolder, log_mean_log_disp_coef,
-	bulk_cycler_info_path,
+	gene_acrophase_prior_path,
 	core_clock_gene_path,
 	reference_gene = 'Arntl',
 	min_gene_prop = 1e-5,

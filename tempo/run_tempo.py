@@ -5,29 +5,9 @@ import anndata
 from . import unsupervised_alg
 
 
-# python run_tempo.py -f /Users/benauerbach/Desktop/fitzgerald_male_control_subsample_experiments/cluster_0/subsample_0/adata.h5ad -o '/users/benauerbach/desktop/figure_1/method_preds/tempo' -c '/users/benauerbach/desktop/figure_1/tempo_config.txt'
-
-
-# python run_tempo.py -f '/Users/benauerbach/Dropbox/BAM Files/brown_scn_data.h5ad' -o '/Users/benauerbach/Dropbox/BAM Files/tempo_exp_1_cells_core_clock' -c '/Users/benauerbach/Desktop/tempo/paper_figures/method_config_dicts/dataset_configs/tempo_brown_clock_only.txt'
-# python run_tempo.py -f '/Users/benauerbach/Dropbox/BAM Files/brown_scn_data.h5ad' -o '/Users/benauerbach/Dropbox/BAM Files/tempo_exp_1_cells_core_clock_and_neuron_cyclers' -c '/Users/benauerbach/Desktop/tempo/paper_figures/method_config_dicts/dataset_configs/tempo_brown_clock_and_neuron_cyclers.txt'
-
-
-
-# python run_tempo.py -f '/Users/benauerbach/Dropbox/BAM Files/brown_scn_data_exp_2.h5ad' -o '/Users/benauerbach/Dropbox/BAM Files/tempo_exp_2_cells_core_clock' -c '/Users/benauerbach/Desktop/tempo/paper_figures/method_config_dicts/dataset_configs/tempo_brown_clock_only.txt'
-# python run_tempo.py -f '/Users/benauerbach/Dropbox/BAM Files/brown_scn_data_exp_2.h5ad' -o '/Users/benauerbach/Dropbox/BAM Files/tempo_exp_2_cells_core_clock_and_neuron_cyclers' -c '/Users/benauerbach/Desktop/tempo/paper_figures/method_config_dicts/dataset_configs/tempo_brown_clock_and_neuron_cyclers.txt'
-
-
-
-
-# python run_tempo.py -f /Users/benauerbach/Dropbox/tempo_paper/figures/ld_figure/fitzgerald_cluster-1/adata.h5ad -o /Users/benauerbach/Dropbox/tempo_paper/figures/ld_figure/fitzgerald_cluster-1/tempo -c /users/benauerbach/desktop/sc_phase_inference/paper_figures/method_config_dicts/dataset_configs/tempo_fitzgerald_cluster-1_config.txt
-# python run_tempo.py -f /Users/benauerbach/Dropbox/tempo_paper/figures/ld_figure/fitzgerald_cluster-0/adata.h5ad -o /Users/benauerbach/Dropbox/tempo_paper/figures/ld_figure/fitzgerald_cluster-0/tempo -c /users/benauerbach/desktop/sc_phase_inference/paper_figures/method_config_dicts/dataset_configs/tempo_fitzgerald_cluster-0_config.txt
-
-
 
 
 def run(adata_path, folder_out, config_dict_path):
-
-
 
 
 

@@ -29,7 +29,7 @@ import random
 
 def run(cycler_adata, folder_out,
 	log_mean_log_disp_coef = None,
-	bulk_cycler_info_path=None,
+	gene_acrophase_prior_path=None,
 	core_clock_gene_path=None,
 	gene_param_grad_dict = None,
 	reference_gene = 'Arntl',
@@ -85,6 +85,7 @@ def run(cycler_adata, folder_out,
 	confident_cell_interval_size_threshold = 12.0,
 	opt_phase_est_gene_params = True,
 	init_variational_dist_to_prior = False,
+	cell_phase_prior_path = None,
 	**kwargs):
 
 
@@ -131,6 +132,7 @@ def run(cycler_adata, folder_out,
 
 
 
+
 	# --- PREP THE TENSORS NEEDED ---
 	cycler_gene_X, log_L, cycler_gene_param_dict, cell_prior_dict, cycler_gene_prior_dict = prep.unsupervised_prep(cycler_adata,**config_dict)
 	if not opt_phase_est_gene_params or init_variational_dist_to_prior: # set variational to priors if opt_phase_est_gene_params is False
@@ -140,6 +142,7 @@ def run(cycler_adata, folder_out,
 	else:
 		clock_indices = np.arange(0,cycler_adata.shape[1])
 	non_clock_indices = np.setdiff1d(np.arange(0,cycler_adata.shape[1]), np.where(cycler_adata.var['is_clock'])[0])
+
 
 
 

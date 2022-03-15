@@ -3,7 +3,7 @@ import os
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import power_spherical
-
+import hyperspherical_vae
 
 
 # tempo imports
@@ -72,7 +72,7 @@ def run(gene_X,
 		dataset = data_loader.TempoDataset(X = gene_X,
 			   log_L = log_L,
 			   theta_posterior_likelihood = prior_theta_euclid_dist.theta_posterior_likelihood)
-	elif prior_theta_euclid_dist.__class__ == power_spherical.distributions.PowerSpherical:
+	elif prior_theta_euclid_dist.__class__ == hyperspherical_vae.distributions.von_mises_fisher.VonMisesFisher: # power_spherical.distributions.PowerSpherical
 		dataset = data_loader.TempoDataset(X = gene_X,
 					   log_L = log_L,
 					   theta_euclid_loc = prior_theta_euclid_dist.loc,
@@ -138,6 +138,8 @@ def run(gene_X,
 				batch_prior_theta_euclid_dist = cell_posterior.ThetaPosteriorDist(batch_data['theta_posterior_likelihood'])
 			elif prior_theta_euclid_dist.__class__ == power_spherical.distributions.PowerSpherical:
 				batch_prior_theta_euclid_dist = power_spherical.PowerSpherical(batch_data['theta_euclid_loc'],batch_data['theta_scale'])
+			elif prior_theta_euclid_dist.__class__ == hyperspherical_vae.distributions.von_mises_fisher.VonMisesFisher:
+				batch_prior_theta_euclid_dist = hyperspherical_vae.distributions.von_mises_fisher.VonMisesFisher(batch_data['theta_euclid_loc'],batch_data['theta_scale'].reshape(-1,1))
 			elif prior_theta_euclid_dist.__class__ == power_spherical.distributions.HypersphericalUniform:
 				batch_prior_theta_euclid_dist = prior_theta_euclid_dist
 
