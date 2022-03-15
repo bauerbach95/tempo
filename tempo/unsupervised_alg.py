@@ -238,6 +238,11 @@ def run(adata,
 	max_num_alg_steps = max(max_num_alg_steps,1)
 	
 
+	# --- COMPUTE THE LIBRARY SIZES AND PROP'S ---
+	adata.obs['lib_size'] = np.array(np.sum(adata.X,axis=1))
+	adata.obs['log_L'] = np.log(np.array(adata.obs['lib_size']))
+	adata.var['prop'] = np.array(np.sum(adata.X,axis=0)) / np.sum(adata.X)
+	
 
 	# --- GET CORE CLOCK GENES ---
 	core_clock_genes = list(pd.read_table(core_clock_gene_path,header=None).iloc[:,0])
