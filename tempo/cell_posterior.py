@@ -133,17 +133,21 @@ class ThetaPosteriorDist():
 
 		# ** compute the number of cells that fell into the interval **
 		num_cells_in_interval = 0
+		cell_in_interval = []
 		for cell_index in range(0,self.num_cells):
 			bool_1 = confidence_interval[cell_index,shifted_true_cell_phase_index[cell_index]] == 1
 			bool_2 = confidence_interval[cell_index,shifted_true_cell_phase_index_low[cell_index]] == 1
 			bool_3 = confidence_interval[cell_index,shifted_true_cell_phase_index_high[cell_index]] == 1
 			if bool_1 or bool_2 or bool_3:
 				num_cells_in_interval += 1
+				cell_in_interval.append(True)
+			else:
+				cell_in_interval.append(False)
+		cell_in_interval = np.array(cell_in_interval)
 
 
 
-
-		return num_cells_in_interval   
+		return num_cells_in_interval, cell_in_interval
 
 
 
