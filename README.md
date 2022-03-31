@@ -1,5 +1,16 @@
 # Tempo: A Bayesian Algorithm for Circadian Phase Inference in Single-Cell RNA-Sequencing Data
 
+## System Requirements
+
+### Hardware Requirements
+Tempo requires only a computer with enough RAM to support in-memory operations. For most datasets, >=8GB RAM should be sufficient.
+
+### Software Requirements
+
+#### OS requirements
+Tempo has been tested on macOS 10.14.5 (Mojave), 12.2.1 (Monterey), and CentOS Linux 7.
+
+## Installation 
 
 Tempo requires mini-conda for installation. For information on installing mini-conda for your operating system, please view https://docs.conda.io/en/latest/miniconda.html.
 
@@ -18,6 +29,7 @@ python run_test.py
 To deactivate the environment:
 conda deactivate
 
+## Running Tempo
 Tutorials on how to run Tempo can be viewed in the tutorial folder of the repository.
 
 
