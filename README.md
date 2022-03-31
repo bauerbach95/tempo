@@ -35,7 +35,7 @@ After installing mini-conda, run the following commands to install Tempo:
 2) cd tempo
 3) source install.sh
 
-After installing, you can activate the conda environment containing the installed Tempo package:
+Installation should take less than 5 minutes. After installing, you can activate the conda environment containing the installed Tempo package:
 conda activate tempo
 
 To test if Tempo works properly, run the run_test.py file using using the activated environment:
@@ -45,7 +45,7 @@ To deactivate the environment:
 conda deactivate
 
 ## Running Tempo
-Tutorials on how to run Tempo can be viewed in the tutorial folder of the repository.
+Tutorials on how to run Tempo (and information on inputs / outputs) can be viewed in the tutorial folder of the repository.
 
 
 
