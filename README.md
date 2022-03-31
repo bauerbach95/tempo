@@ -41,7 +41,7 @@ conda activate tempo
 To test if Tempo works properly, run the run_test.py file using using the activated environment:
 python run_test.py
 
-Running the test should take less than 5 minutes. Successful completion of the test will show a message "SUCCESSFULLY FINISHED".
+Running the test should take less than 5 minutes. Successful completion of the test will yield a message "SUCCESSFULLY FINISHED".
 
 To deactivate the environment:
 conda deactivate
