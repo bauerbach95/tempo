@@ -11,7 +11,7 @@ Tempo requires only a computer with enough RAM to support in-memory operations. 
 Tempo has been tested on macOS 10.14.5 (Mojave), 12.2.1 (Monterey), and CentOS Linux 7.
 
 #### Python dependencies
-Tempo requires python >= 3.8 and depends on:
+Tempo requires python >= 3.8 and depends on the following python packages:
   - anndata
   - numpy
   - pandas
