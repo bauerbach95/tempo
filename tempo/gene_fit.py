@@ -151,12 +151,6 @@ def gene_fit(gene_X,
 			gene_param.requires_grad = gene_param_grad_dict[gene_param_key]
 
 
-	# print("TEMP: PRINTING WHICH PARAMETERS REQUIRE GRAD")
-	# for gene_param_key, gene_param in gene_param_dict.items():
-	# 	print("Param: %s; Requires grad: %s" % (gene_param_key, gene_param.requires_grad))
-
-
-
 	# ** create dataset for the cell parameters / counts etc. **
 	dataset = data_loader.TempoDataset(X = gene_X,
 							   log_L = log_L,
