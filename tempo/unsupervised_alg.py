@@ -241,7 +241,7 @@ def run(adata,
 	# --- COMPUTE THE LIBRARY SIZES AND PROP'S ---
 	adata.obs['lib_size'] = np.array(np.sum(adata.X,axis=1))
 	adata.obs['log_L'] = np.log(np.array(adata.obs['lib_size']))
-	adata.var['prop'] = np.array(np.sum(adata.X,axis=0)) / np.sum(adata.X)
+	adata.var['prop'] = np.array(np.sum(adata.X,axis=0)).flatten() / np.sum(adata.X)
 	
 
 	# --- GET CORE CLOCK GENES ---
