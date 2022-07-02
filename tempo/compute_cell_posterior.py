@@ -51,7 +51,10 @@ def compute_cell_posterior(gene_X, log_L, num_grid_points, prior_theta_euclid_di
 
 	# --- SET UP THE THETA GRID ---
 
-	theta_grid = torch.linspace(0,2*np.pi,num_grid_points)
+
+
+	# theta_grid = torch.linspace(0,2*np.pi,num_grid_points)
+	theta_grid = torch.arange(0,2*np.pi,(2 * np.pi) / num_grid_points)
 	theta_euclid_grid = torch.zeros((theta_grid.shape[0],2))
 	theta_euclid_grid[:,0] = torch.cos(theta_grid)
 	theta_euclid_grid[:,1] = torch.sin(theta_grid)
