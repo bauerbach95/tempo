@@ -27,7 +27,7 @@ from . import objective_functions
 
 def run(adata,
 	folder_out,
-	bulk_cycler_info_path,
+	gene_acrophase_prior_path,
 	min_gene_prop = 1e-5,
 	min_amp = 0.0, # ** prep parameters **
 	max_amp = 1.5 / np.log10(np.e),
