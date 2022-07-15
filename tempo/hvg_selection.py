@@ -2,6 +2,8 @@ import numpy as np
 import anndata
 import scipy
 import statsmodels
+from statsmodels import nonparametric
+from statsmodels.nonparametric import kernel_regression
 
 
 # --- DEFINE FN FOR GETTING MOST HIGHLY VARIABLE GENES ---
@@ -98,7 +100,7 @@ def get_hv_genes_kernel(adata,std_residual_threshold=0.5,viz=False,bw=0.1,pseudo
 		plt.title("Log10_1p prop var vs. mean colored by HV indicator")
 		plt.xlabel("Log10_1p prop mean")
 		plt.ylabel("Log10_1p prop var")
-		plt.savefig("/users/benauerbach/desktop/hv_fig.png",dpi=200)
+		# plt.savefig("/users/benauerbach/desktop/hv_fig.png",dpi=200)
 		# plt.show()
 
 
