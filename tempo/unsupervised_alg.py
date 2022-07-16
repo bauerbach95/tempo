@@ -316,6 +316,9 @@ def run(adata,
 	adata = adata[:,list(core_clock_genes) + list(hv_genes)]
 
 
+	print("Adata shape after thresholding based on gene variance")
+	print(str(adata.shape))
+
 	# --- GENERATE THE NULL DISTRIBUTION OF CORE CLOCK EVIDENCE ---
 
 	print("--- GENERATING NULL DISTRIBUTION OF CORE CLOCK EVIDENCE UNDER RANDOM CELL PHASE ASSIGNMENTS ---")
