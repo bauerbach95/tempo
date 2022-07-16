@@ -16,6 +16,189 @@ from . import utils
 
 
 
+
+# inputs:
+#	- mu_sampled ([num_gene_samples x num_genes]) 
+#	- A_sampled ([num_gene_samples x num_genes]) 
+#	- phi_sampled ([num_gene_samples x num_genes]) 
+#	- Q_sampled ([num_gene_samples x num_genes]) 
+#	- phases_sampled ([num_cells x num_cell_samples])
+
+# output:
+#	- [num_gene_samples x num_cells x num_cell_samples x num_genes]
+def compute_clock_ll_mat(clock_X,
+						log_L,
+						use_nb,
+						log_mean_log_disp_coef,
+						clock_min_amp,
+						clock_max_amp,
+						mu_sampled = None,
+						A_sampled = None,
+						phi_sampled = None,
+						Q_sampled = None,
+						phases_sampled = None):
+	
+
+	
+	# **  get corresponding samples for log prop's: [num_gene_samples x num_cells x num_cell_samples x num_genes] ** 
+	if Q_sampled is None:
+		clock_log_prop_sampled = mu_sampled + (A_sampled * torch.cos(phases_sampled - phi_sampled))
+	else:
+		clock_log_prop_sampled = mu_sampled + (Q_sampled * A_sampled * torch.cos(phases_sampled - phi_sampled))
+
+	
+	#  ** get corresponding samples for log means: [num_gene_samples x num_cells x num_cell_samples x num_genes] ** 
+	clock_log_mean_sampled = clock_log_prop_sampled + log_L.unsqueeze(0).unsqueeze(2).unsqueeze(3)
+
+
+	# ** compute the LL **
+	if use_nb:
+		ll_mat = objective_functions.compute_nb_ll(clock_X.unsqueeze(0).unsqueeze(2),
+			clock_log_prop_sampled,
+			clock_log_mean_sampled,
+			log_mean_log_disp_coef)
+
+	else:
+		ll_mat = torch.distributions.poisson.Poisson(rate = torch.exp(clock_log_mean_sampled)).log_prob(clock_X.unsqueeze(0).unsqueeze(2))
+	
+	return ll_mat
+
+
+
+
+
+def grid_sample_posterior_cell_phase(log_L,
+	prior_theta_euclid_dist,
+	num_grid_points = 12,
+	clock_X = None,
+	clock_param_dict = None,
+	clock_min_amp = None,
+	clock_max_amp = None,
+	clock_mu_sampled = None,
+	clock_A_sampled = None,
+	clock_phi_sampled = None,
+	clock_Q_sampled = None,
+	de_novo_X = None,
+	de_novo_log_alpha = None,
+	de_novo_log_beta = None,
+	de_novo_min_log_prop = None,
+	de_novo_max_log_prop = None,                             
+	use_nb = False,
+	log_mean_log_disp_coef = None
+	):
+
+	
+	# --- IF CHECK IF WE ARE USING THE CLOCK AND/OR THE DE NOVO IN THE LIKELIHOOD ---
+	use_clock_ll = (clock_X is not None) & (clock_mu_sampled is not None) & (clock_A_sampled is not None) & (clock_phi_sampled is not None) & (clock_min_amp is not None) & (clock_max_amp is not None)
+	use_de_novo_ll = (de_novo_X is not None) & (de_novo_log_alpha is not None) & (de_novo_log_beta is not None) & (de_novo_min_log_prop is not None) & (de_novo_max_log_prop is not None)
+	if not use_clock_ll and not use_de_novo_ll:
+		raise Exception("Error: neither clock nor de novo genes given as input for grid sampling.")
+	
+
+	# --- GET THE PHASE GRID: [1 x num_grid_points] ----
+	phase_grid = torch.arange(0,2*np.pi,(2 * np.pi) / num_grid_points)
+	phase_grid_euclid = torch.zeros((num_grid_points,2))
+	phase_grid_euclid[:,0] = torch.cos(phase_grid)
+	phase_grid_euclid[:,1] = torch.sin(phase_grid)
+
+
+	
+
+	# --- GET THE LL MAT FOR THE DE NOVO AND CLOCK GENES ---- **
+
+	# [num_gene_samples x num_cells x num_cell_samples x num_genes]
+	if use_de_novo_ll:
+		de_novo_ll_mat = compute_nonparametric_ll_mat(gene_X = de_novo_X,
+									log_L = log_L,
+									phases_sampled = phase_grid.unsqueeze(0),
+									gene_log_alpha = de_novo_log_alpha,
+									gene_log_beta = de_novo_log_beta,
+									gene_min_log_prop = de_novo_min_log_prop,
+									gene_max_log_prop = de_novo_max_log_prop,
+									num_gene_samples = num_gene_samples,
+									use_nb = use_nb,
+									log_mean_log_disp_coef = log_mean_log_disp_coef)
+
+	# [num_gene_samples x num_cells x num_cell_samples x num_genes]
+	if use_clock_ll:
+		clock_ll_mat = compute_clock_ll_mat(clock_X = clock_X,
+								log_L = log_L,
+								use_nb = use_nb,
+								log_mean_log_disp_coef = log_mean_log_disp_coef,
+								clock_min_amp = clock_min_amp,
+								clock_max_amp = clock_max_amp,
+								mu_sampled = clock_mu_sampled,
+								A_sampled = clock_A_sampled,
+								phi_sampled = clock_phi_sampled,
+								Q_sampled = clock_Q_sampled,
+								phases_sampled = phase_grid.unsqueeze(0))
+
+
+
+
+	# --- CONCATENATE THE CLOCK AND DE NOVO LIKELIHOODS IF WE NEED TO ---
+	
+	if use_de_novo_ll and use_clock_ll:
+		# [num_gene_samples x num_cells x num_cell_samples x (num_clock_genes + num_de_novo_genes)]
+		ll_cell_gene_grid_sampled = torch.cat((clock_ll_mat,de_novo_ll_mat), dim=3)
+	elif use_de_novo_ll:
+		# [num_gene_samples x num_cells x num_cell_samples x num_de_novo_genes]
+		ll_cell_gene_grid_sampled = de_novo_ll_mat
+	else:
+		# [num_gene_samples x num_cells x num_cell_samples x num_clock_genes]
+		ll_cell_gene_grid_sampled = clock_ll_mat
+
+
+	# --- COMPUTE THE PHASE LIKELIHOODS: [num_cells x num_grid_points]---
+
+	phase_ll_un_norm = torch.mean(torch.sum(ll_cell_gene_grid_sampled,dim=3),dim=0) # [num_cells x num_grid_points]
+	phase_ll_max_norm = phase_ll_un_norm - torch.max(phase_ll_un_norm,axis=1).values.unsqueeze(1)
+	phase_ll_max_norm = phase_ll_max_norm.to(torch.float64)
+	phase_likelihood_max_norm = torch.exp(phase_ll_max_norm)
+	phase_likelihood = phase_likelihood_max_norm / torch.sum(phase_likelihood_max_norm,axis=1).unsqueeze(1)
+	phase_ll = torch.log(phase_likelihood)
+
+
+	# --- COMPUTE THE PRIOR PROBABILITIES OVER THETA GRID: # [1 x num_grid_points] or [num_cells x num_grid_points]---
+
+	if prior_theta_euclid_dist is not None:
+		if prior_theta_euclid_dist.__class__ == power_spherical.distributions.HypersphericalUniform:
+			prior_theta_grid_ll_un_norm = prior_theta_euclid_dist.log_prob(phase_grid_euclid).unsqueeze(0) #[1 x num_grid_points]     
+		elif prior_theta_euclid_dist.__class__ == hyperspherical_vae.distributions.von_mises_fisher.VonMisesFisher:
+			prior_theta_grid_ll_un_norm = prior_theta_euclid_dist.log_prob(phase_grid_euclid.unsqueeze(1)).T #[num_cells x num_grid_points]    
+		elif prior_theta_euclid_dist.__class__ == cell_posterior.ThetaPosteriorDist:
+			prior_theta_grid_ll_un_norm = prior_theta_euclid_dist.log_prob(phase_grid.unsqueeze(1)).T #[num_cells x num_grid_points]            
+		else:
+			raise Exception("Cell prior distribution choice not recognized.")
+	prior_theta_grid_ll_max_norm = prior_theta_grid_ll_un_norm - torch.max(prior_theta_grid_ll_un_norm,dim=1).values.unsqueeze(1)
+	prior_theta_grid_ll_max_norm = prior_theta_grid_ll_max_norm.to(torch.float64)
+	prior_theta_grid_likelihood_max_norm = torch.exp(prior_theta_grid_ll_max_norm)
+	prior_theta_grid_likelihood = prior_theta_grid_likelihood_max_norm / torch.sum(prior_theta_grid_likelihood_max_norm,dim=1).unsqueeze(1)
+	prior_phase_ll = torch.log(prior_theta_grid_likelihood)
+
+
+
+	# ---- COMPUTE THE PHASE POSTERIOR (AVERAGING THE INDIVIDUAL SAMPLE PHASE POSTERIORS) ----
+	posterior_phase_ll_un_norm = phase_ll + prior_phase_ll
+	posterior_phase_ll_max_norm = posterior_phase_ll_un_norm - torch.max(posterior_phase_ll_un_norm,axis=1).values.unsqueeze(1)
+	posterior_phase_ll_max_norm = posterior_phase_ll_max_norm.to(torch.float64)
+	posterior_phase_likelihood_max_norm = torch.exp(posterior_phase_ll_max_norm)
+	posterior_phase_likelihood = posterior_phase_likelihood_max_norm / torch.sum(posterior_phase_likelihood_max_norm,axis=1).unsqueeze(1)
+
+
+
+
+	return posterior_phase_likelihood, phase_likelihood, prior_theta_grid_likelihood
+
+
+
+
+
+
+
+
+
+
 def compute_cell_posterior(gene_X, log_L, num_grid_points, prior_theta_euclid_dist, mu_sampled, A_sampled, phi_sampled, Q_sampled = None, B_sampled = None, use_nb = True, log_mean_log_disp_coef = None):
 
 
