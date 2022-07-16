@@ -132,6 +132,7 @@ def run(adata,
 	mean_disp_log10_prop_bin_marks = list(np.linspace(-5,-1,20)), 
 	mean_disp_max_num_genes_per_bin = 50,
 	hv_std_residual_threshold = 0.5, # ** HVG selection parameters **
+	clock_std_residual_threshold = 1.0,
 	mu_loc_lr = 1e-1, # ** conditional posterior opt parameters **
 	mu_log_scale_lr = 1e-1,
 	A_log_alpha_lr = 1e-1,
@@ -298,12 +299,17 @@ def run(adata,
 	hv_genes = np.array(sorted(list(hv_genes)))
 	adata.var['is_hv'] = False
 	adata.var.loc[hv_genes,'is_hv'] = True
+	adata.var['var_pearson_residual'] = pearson_residuals
 
 
 
-	# --- RESTRICT ADATA TO THOSE THAT ARE CORE CLOCK OR CANDIDATE HV GENES ---
-	adata = adata[:,(np.isin(adata.var_names, hv_genes)) | (np.isin(adata.var_names, core_clock_genes))]
+	# # --- RESTRICT ADATA TO THOSE THAT ARE CORE CLOCK OR CANDIDATE HV GENES ---
+	# adata = adata[:,(np.isin(adata.var_names, hv_genes)) | (np.isin(adata.var_names, core_clock_genes))]
 
+
+	# --- GET RID OF CLOCK GENES THAT DON'T HAVE SUFFICIENT VARIANCE ---
+	clock_adata = adata[:,adata.var['is_clock']]
+	core_clock_genes = list(clock_adata[:,clock_adata.var['var_pearson_residual'] >= clock_std_residual_threshold].var_names)
 
 
 	# --- ORDER ADATA S.T. CORE CLOCK GENES FIRST AND THEN HV GENES SECOND ---
