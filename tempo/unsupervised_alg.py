@@ -164,6 +164,7 @@ def run(adata,
 	opt_phase_est_gene_params = True,
 	init_variational_dist_to_prior = False,
 	log10_bf_tempo_vs_null_threshold = np.log10(1.5),
+	use_de_novo_cycler_detection = True,
 	**kwargs):
 
 
@@ -420,6 +421,11 @@ def run(adata,
 		gc.collect()
 
 
+		# ** halt algorithm if not running w/ de novo cycler detection **
+		if not use_de_novo_cycler_detection:
+			alg_step_to_return = 0
+			break
+
 
 		# --- IDENTIFY DE NOVO CYCLERS ---
 
@@ -493,18 +499,20 @@ def run(adata,
 		opt_cycler_gene_df = pd.read_table(opt_cycler_gene_df_path,sep='\t',index_col='gene')
 		opt_cycler_gene_df.to_csv(opt_cycler_gene_df_path_out,sep='\t')
 
-		# read in flat gene data and write
-		opt_flat_gene_df_path = '%s/%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
-		try:
-			opt_flat_gene_df = pd.read_table(opt_flat_gene_df_path,sep='\t',index_col='gene')
-			opt_flat_gene_df.to_csv(opt_flat_gene_df_path_out,sep='\t')
-		except Exception as e:
-			print("Error: writing out optimal flat gene df: %s" % str(e))
+
+		if use_de_novo_cycler_detection:
+
+			# read in flat gene data and write
+			opt_flat_gene_df_path = '%s/%s/de_novo_cycler_id/gene_prior_and_posterior.tsv' % (alg_result_head_folder, alg_step_to_return)
+			try:
+				opt_flat_gene_df = pd.read_table(opt_flat_gene_df_path,sep='\t',index_col='gene')
+				opt_flat_gene_df.to_csv(opt_flat_gene_df_path_out,sep='\t')
+			except Exception as e:
+				print("Error: writing out optimal flat gene df: %s" % str(e))
 
 
 
-	# --- RETURN THE CELL PHASE POSTERIOR DF ---
-	return opt_cell_posterior_df
+
 
 
 
