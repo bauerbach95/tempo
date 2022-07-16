@@ -503,6 +503,11 @@ def run(adata,
 
 
 
+	# --- RETURN THE CELL PHASE POSTERIOR DF ---
+	return opt_cell_posterior_df
+
+
+
 if __name__ == "__main__":
 	main(sys.argv)
 
