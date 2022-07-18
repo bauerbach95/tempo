@@ -290,6 +290,7 @@ def run(adata,
 	print(str(adata.shape))
 
 
+
 	# --- CALL CANDIDATE HV GENES ---
 
 	print("--- IDENTIFYING HIGHLY VARIABLE GENES BASED ON MEAN / VARIANCE RELATIONSHIP ---")
@@ -303,8 +304,8 @@ def run(adata,
 
 
 
-	# # --- RESTRICT ADATA TO THOSE THAT ARE CORE CLOCK OR CANDIDATE HV GENES ---
-	# adata = adata[:,(np.isin(adata.var_names, hv_genes)) | (np.isin(adata.var_names, core_clock_genes))]
+	# --- RESTRICT ADATA TO THOSE THAT ARE CORE CLOCK OR CANDIDATE HV GENES ---
+	adata = adata[:,(np.isin(adata.var_names, hv_genes)) | (np.isin(adata.var_names, core_clock_genes))]
 
 
 	# --- GET RID OF CLOCK GENES THAT DON'T HAVE SUFFICIENT VARIANCE ---
@@ -325,6 +326,10 @@ def run(adata,
 
 	# ** get the clock adata **
 	clock_adata = adata[:,adata.var['is_clock']]
+
+
+	print("clock_adata shape after thresholding based on gene variance")
+	print(str(clock_adata.shape))
 
 	# ** run **
 	null_log_evidence_vec = generate_null_dist.run(clock_adata.copy(), evidence_folder_out, log_mean_log_disp_coef, **copy.deepcopy(config_dict))
