@@ -286,7 +286,7 @@ def compute_cell_posterior(gene_X, log_L, num_grid_points, prior_theta_euclid_di
 
 	# --- COMPUTE LL OVER CELLS: [num_cells x num_cell_samples x num_gene_samples] ---
 	ll_cell_grids = torch.sum(ll_cell_gene_grid_sampled,dim=3) # [num_cells x num_cell_samples x num_gene_samples]
-
+	
 
 
 	# --- RESHAPE prior_theta_grid_prob: [num_cells x num_cell_samples x 1] ---
