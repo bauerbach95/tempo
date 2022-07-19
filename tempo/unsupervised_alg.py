@@ -132,7 +132,7 @@ def run(adata,
 	mean_disp_log10_prop_bin_marks = list(np.linspace(-5,-1,20)), 
 	mean_disp_max_num_genes_per_bin = 50,
 	hv_std_residual_threshold = 0.5, # ** HVG selection parameters **
-	clock_std_residual_threshold = 1.0,
+	clock_std_residual_threshold = -5, # 1.0,
 	mu_loc_lr = 1e-1, # ** conditional posterior opt parameters **
 	mu_log_scale_lr = 1e-1,
 	A_log_alpha_lr = 1e-1,
@@ -295,7 +295,7 @@ def run(adata,
 
 	print("--- IDENTIFYING HIGHLY VARIABLE GENES BASED ON MEAN / VARIANCE RELATIONSHIP ---")
 
-	hv_genes, pearson_residuals, log1p_prop_mean, log1p_prop_var, hv_gene_indices = hvg_selection.get_hv_genes_kernel(adata,std_residual_threshold=hv_std_residual_threshold,viz=False,bw=0.1,pseudocount=1)
+	hv_genes, pearson_residuals, log1p_prop_mean, log1p_prop_var, hv_gene_indices = hvg_selection.get_hv_genes_kernel(adata,std_residual_threshold=hv_std_residual_threshold,viz=False,bw=0.05,pseudocount=1) # bw = 0.1
 	hv_genes = np.setdiff1d(np.array(hv_genes),np.array(core_clock_genes)) # make sure the core clock genes are not in there
 	hv_genes = np.array(sorted(list(hv_genes)))
 	adata.var['is_hv'] = False
