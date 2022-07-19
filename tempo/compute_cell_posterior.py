@@ -17,6 +17,59 @@ from . import utils
 
 
 
+# [num_gene_samples x num_cells x num_cell_samples x num_genes]
+def compute_nonparametric_ll_mat(gene_X,
+                            log_L,
+                            phases_sampled,
+                            gene_log_alpha,
+                            gene_log_beta,
+                            gene_min_log_prop,
+                            gene_max_log_prop,
+                            num_gene_samples,
+                            use_nb,
+                            log_mean_log_disp_coef):
+    
+    
+    # ** get num grid points from de_novo_log_alpha **
+    num_grid_points = gene_log_alpha.shape[0]
+
+
+    # ** discretize the cell phases **
+    phases_discretized_indices = torch.round((phases_sampled / (2 * np.pi)) * num_grid_points) # convert [0,1] to [0,num_grid_points] (float), and then discretize
+    phases_discretized_indices[torch.where(phases_discretized_indices == num_grid_points)] = 0 # since bins actually go from [0,num_grid_points - 1], let's wrap back around
+    phases_discretized_indices = phases_discretized_indices.int().long() # [num_cells x num_cell_samples]
+
+
+    # ** get the cell-gene alpha and beta's ** 
+    cell_gene_alpha = torch.exp(gene_log_alpha)[phases_discretized_indices.long(),:] # [num_cells x num_cell_samples x num_genes]
+    cell_gene_beta = torch.exp(gene_log_beta)[phases_discretized_indices.long(),:] # [num_cells x num_cell_samples x num_genes]
+
+    # **  get the corresponding distribution
+    cell_gene_dist = torch.distributions.beta.Beta(cell_gene_alpha,cell_gene_beta)
+
+    # ** sample gene proportions: [num_gene_samples x num_cells x num_cell_samples x num_genes] ** 
+    cell_gene_log_prop_sampled = cell_gene_dist.rsample((num_gene_samples,)) # [num_]
+    cell_gene_log_prop_sampled = cell_gene_log_prop_sampled * (gene_max_log_prop.unsqueeze(0).unsqueeze(0) - gene_min_log_prop.unsqueeze(0).unsqueeze(0)) + gene_min_log_prop.unsqueeze(0).unsqueeze(0) # put in [min to max prop for each gene]
+
+
+    # **  get the cell_gene_log_mean (expected log prop scaled by the library size): [num_gene_samples x num_cells x num_cell_samples x num_genes] ** 
+    cell_gene_log_mean = cell_gene_log_prop_sampled + log_L.unsqueeze(0).unsqueeze(2).unsqueeze(2)
+    cell_gene_mean = torch.exp(cell_gene_log_mean)
+
+    #  ** compute the MC expected log likelihood for gene: # [num_gene_samples x num_cells x num_cell_samples x num_genes] ** 
+    gene_X_reshaped = gene_X.unsqueeze(0).unsqueeze(2)
+    if use_nb:
+        ll_mat = objective_functions.compute_nb_ll(gene_X_reshaped,
+        cell_gene_log_prop_sampled,
+        cell_gene_log_mean,
+        log_mean_log_disp_coef)
+    else:
+        ll_mat = torch.distributions.poisson.Poisson(cell_gene_mean).log_prob(gene_X_reshaped)
+        
+    return ll_mat
+    
+
+
 # inputs:
 #	- mu_sampled ([num_gene_samples x num_genes]) 
 #	- A_sampled ([num_gene_samples x num_genes]) 
