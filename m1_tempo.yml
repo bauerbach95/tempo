@@ -1,0 +1,22 @@
+channels:
+  - anaconda
+  - bioconda
+  - defaults
+  - conda-forge
+dependencies:
+  - python>=3.8
+  - anndata
+  - numpy
+  - pandas
+  - scanpy>=1.6
+  - scikit-image
+  - scikit-learn
+  - scipy
+  - statsmodels
+  - tqdm
+
+
+
+
+
+
