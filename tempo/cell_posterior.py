@@ -82,7 +82,7 @@ class ThetaPosteriorDist():
 
 
 	# return [num_cells x num_grid_points] boolean matrix, where true if in the interval
-	def compute_confidence_interval(self,confidence,map_shifted_posterior_likelihood = None, map_shifted_indices = None):
+	def compute_confidence_interval(self,confidence,map_shifted_posterior_likelihood = None, map_shifted_indices = None, shift_back = False):
 
 
 		# ** get the map shifted posterior likelihood **
@@ -94,6 +94,14 @@ class ThetaPosteriorDist():
 		cell_confidence_intervals = np.zeros(map_shifted_posterior_likelihood.shape)
 		for cell_index in range(0,self.num_cells):    
 			cell_confidence_intervals[cell_index,:] = self.compute_indiv_cell_confidence_interval(copy.deepcopy(map_shifted_posterior_likelihood[cell_index,:]),confidence=confidence).numpy()
+
+
+		# ** shift back if specified (otherwise just leave MAP's at 0 index) **
+		if shift_back:
+			cell_confidence_intervals = copy.deepcopy(torch.Tensor(cell_confidence_intervals))
+			for cell_index in range(0,len(self.map_indices)):
+				cell_confidence_intervals[cell_index,:] = torch.roll(cell_confidence_intervals[cell_index,:], shifts = self.map_indices[gene_index].item())
+
 
 		return cell_confidence_intervals
 
