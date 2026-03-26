@@ -571,7 +571,7 @@ The `data/` directory contains reference files for various tissues and species:
 
 If you use TEMPO, please cite:
 
-> Auerbach, B.J., Oh, J., Gee, S.E. *et al.* TEMPO: unsupervised Bayesian estimation of cell-intrinsic clocks from single-cell RNA-seq data. *Nat Commun* **13**, 6319 (2022). https://www.nature.com/articles/s41467-022-34185-w
+> Auerbach, B.J., FitzGerald, G.A., Li, M., Tempo: an unsupervised Bayesian algorithm for circadian phase inference in single-cell transcriptomics, Nature Communications (2022). https://www.nature.com/articles/s41467-022-34185-w
 
 ---
 
